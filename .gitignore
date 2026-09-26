@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-server
+.data
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage
+.claude/
+*.db
+*.db-journal
+prisma/*.db*
