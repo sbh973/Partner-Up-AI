@@ -163,6 +163,16 @@ export async function analyzeSemanticSimilarity(a: string, b: string): Promise<S
 // ─── 4 & 5. Group explanation + summary ────────────────────────────────────
 
 function templateExplanation(members: GroupMemberFacts[], sharedTraits: string[]): string {
+  if (members.every((m) => m.skills.length === 0)) {
+    // A social group (Explore): when they're free and what they share, not what they can build.
+    const [first, ...rest] = members.map((m) => m.availability ?? []);
+    const slot = (first ?? []).find((x) => rest.every((r) => r.length === 0 || r.includes(x)));
+    const parts = [
+      slot && `everyone’s free ${slot.toLowerCase()}`,
+      sharedTraits.length && `the group overlaps on ${listToSentence(sharedTraits.slice(0, 3)).toLowerCase()}`,
+    ].filter((x): x is string => Boolean(x));
+    return parts.length ? `${capitalize(parts.join(', and '))}.` : 'These people are up for the same plans you are.';
+  }
   const skills = [...new Set(members.flatMap((m) => m.contributes))].slice(0, 4);
   const shared = sharedTraits.slice(0, 2);
   if (shared.length && skills.length) return `This group shares an interest in ${listToSentence(shared)} and covers ${listToSentence(skills)} between them.`;
@@ -172,6 +182,10 @@ function templateExplanation(members: GroupMemberFacts[], sharedTraits: string[]
 }
 
 function templateSummary(group: GroupFacts): string {
+  if (group.members.every((m) => m.skills.length === 0)) {
+    const into = group.members.filter((m) => !m.isYou && m.contributes.length).map((m) => `${m.name} is into ${listToSentence(m.contributes).toLowerCase()}`);
+    return into.length ? `${listToSentence(into)}.` : templateExplanation(group.members, group.sharedTraits);
+  }
   const parts = group.members
     .filter((m) => m.contributes.length)
     .map((m) => `${m.isYou ? 'you bring' : `${m.name} brings`} ${listToSentence(m.contributes.slice(0, 2))}`);

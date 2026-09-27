@@ -104,6 +104,8 @@ export interface DnaExtractResponse {
   dna: PartnerDNA;
   reply: string;
   source: AiSource;
+  /** Muse has what it needs — onboarding can end. */
+  done: boolean;
 }
 
 // ─── Mutual (no AI) ────────────────────────────────────────────────────────

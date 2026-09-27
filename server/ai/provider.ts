@@ -45,6 +45,8 @@ export interface GroupMemberFacts {
   skills: string[];
   interests: string[];
   contributes: string[];
+  location?: string | null;
+  availability?: string[];
 }
 
 export interface GroupFacts {

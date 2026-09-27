@@ -5,10 +5,9 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { apiMiddleware } from './app';
 
-try {
-  process.loadEnvFile?.('.env');
-} catch {
-  // No .env file — rely on the real environment.
+// Real deployments inject env vars; locally, .env.local wins over .env.
+for (const file of ['.env.local', '.env']) {
+  if (existsSync(file)) process.loadEnvFile(file);
 }
 
 const DIST = resolve(process.cwd(), 'dist');

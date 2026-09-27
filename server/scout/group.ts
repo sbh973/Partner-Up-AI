@@ -17,17 +17,20 @@ export interface GroupPick {
   wanted: string[];
 }
 
-function commonSlots(people: ScoutProfile[]): TimeSlot[] {
+export function commonSlots(people: ScoutProfile[]): TimeSlot[] {
   const [first, ...rest] = people.map((p) => p.dna.availability);
   if (!first) return [];
   return first.filter((slot) => rest.every((slots) => slots.length === 0 || slots.includes(slot)));
 }
 
-function groupValue(me: ScoutProfile, picks: Array<{ profile: ScoutProfile; result: ScoreResult }>, wanted: string[]): number {
+function groupValue(me: ScoutProfile, picks: Array<{ profile: ScoutProfile; result: ScoreResult }>, wanted: string[], lens: ScoutIntent['lens']): number {
   const meanFit = picks.reduce((s, p) => s + p.result.score / 100, 0) / picks.length;
   const pool = [...new Set([...canonOf(me).skills, ...picks.flatMap((p) => canonOf(p.profile).skills)])];
   let coverage: number;
-  if (wanted.length) {
+  if (lens === 'explore') {
+    // Social plans: reward people who actually want to go out and explore, not a mix of skills.
+    coverage = picks.reduce((s, p) => s + (p.result.dimensions.find((d) => d.key === 'intent')?.score ?? 0), 0) / picks.length;
+  } else if (wanted.length) {
     coverage = wanted.reduce((s, w) => s + bestMatch(w, pool).score, 0) / wanted.length;
   } else {
     // No specific skills asked for: reward a varied mix of primary roles.
@@ -53,7 +56,7 @@ export function assembleGroup(me: ScoutProfile, intent: ScoutIntent, candidates:
     let best: { pick: (typeof scored)[number]; value: number } | null = null;
     for (const candidate of scored) {
       if (picks.includes(candidate)) continue;
-      const value = groupValue(me, [...picks, candidate], wanted);
+      const value = groupValue(me, [...picks, candidate], wanted, intent.lens);
       if (!best || value > best.value + 1e-9) best = { pick: candidate, value };
     }
     if (!best) break;
@@ -89,7 +92,7 @@ export function assembleGroup(me: ScoutProfile, intent: ScoutIntent, candidates:
 
   return {
     members: picks,
-    score: Math.round(groupValue(me, picks, wanted) * 100),
+    score: Math.round(groupValue(me, picks, wanted, intent.lens) * 100),
     covered,
     missing,
     sharedTraits,
@@ -99,6 +102,13 @@ export function assembleGroup(me: ScoutProfile, intent: ScoutIntent, candidates:
 
 export function memberContributions(p: ScoutProfile, wanted: string[]): string[] {
   return contributions(p, wanted);
+}
+
+/** For a social group, what someone brings is what they're into — led by what the group shares. */
+export function memberInterests(p: ScoutProfile, focus: string[]): string[] {
+  const mine = canonOf(p).interests;
+  const led = focus.filter((f) => mine.some((m) => commonConcept(f, m))).map(conceptLabel);
+  return [...new Set([...led, ...p.dna.interests])].slice(0, 2);
 }
 
 export function tagsOf(ids: string[]) {

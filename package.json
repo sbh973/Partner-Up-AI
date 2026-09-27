@@ -1,16 +1,18 @@
 {
   "name": "partner-up-ai",
   "version": "0.1.0",
-  "description": "Partner Up AI — AI that helps humans find the humans they need.",
+  "description": "Partner Up — AI powered by Muse. Mutual: you know who. Scout: you know what.",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/db-push.mjs && vite",
     "build": "npm run typecheck && vite build && npm run build:server",
     "build:server": "esbuild server/prod.ts --bundle --platform=node --format=esm --packages=external --outfile=dist-server/index.mjs",
-    "start": "node dist-server/index.mjs",
+    "start": "node scripts/db-push.mjs && node dist-server/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "seed:supabase": "tsx scripts/seed-supabase.ts"
+    "db:push": "node scripts/db-push.mjs",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "license": "MIT",
   "type": "module",

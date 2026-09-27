@@ -5,7 +5,10 @@ type Global = typeof globalThis & { __partnerUpPrisma?: PrismaClient };
 /** One Prisma client per process (survives Vite's server-module hot reloads). */
 export function db(): PrismaClient {
   const g = globalThis as Global;
-  if (!g.__partnerUpPrisma) g.__partnerUpPrisma = new PrismaClient();
+  if (!g.__partnerUpPrisma) {
+    process.env.DATABASE_URL ||= 'file:./dev.db';
+    g.__partnerUpPrisma = new PrismaClient();
+  }
   return g.__partnerUpPrisma;
 }
 

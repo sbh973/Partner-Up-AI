@@ -31,7 +31,8 @@ export function MuseOnboarding({ onDone }: { onDone: (dna: PartnerDNA | null) =>
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dna, setDna] = useState<PartnerDNA | null>(null);
-  const finished = step >= 3;
+  const [done, setDone] = useState(false);
+  const finished = done || step >= 3;
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
@@ -46,6 +47,7 @@ export function MuseOnboarding({ onDone }: { onDone: (dna: PartnerDNA | null) =>
       setDna(res.dna);
       setTurns((t) => [...t, { from: 'muse', text: res.reply, added: patchItems(res.added), source: res.source }]);
       setStep((s) => s + 1);
+      if (res.done) setDone(true);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

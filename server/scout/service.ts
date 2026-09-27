@@ -13,15 +13,15 @@ import type {
   ScoutReason,
   ScoutSearchResponse,
 } from '../../shared/types';
-import { listToSentence } from '../../shared/labels';
+import { listToSentence, TIME_SLOT_LABELS } from '../../shared/labels';
 import { extractProfile, generateGroupExplanation, generateGroupSummary, museReply, parseGroupIntent } from '../ai/service';
 import { db, parseJson } from '../db';
 import { ApiError, notFound } from '../http/errors';
 import { notify } from '../notify';
-import { canonicalize, toTag } from '../semantic/similarity';
+import { canonicalize, canonicalizeAll, toTag } from '../semantic/similarity';
 import { applyPatch, emptyDna, isDnaEmpty, loadDna, removePatch, rowToDna, saveDna } from './dna';
 import { personView, scoreCandidate, type ScoutProfile } from './engine';
-import { assembleGroup, labelOf, memberContributions } from './group';
+import { assembleGroup, labelOf, memberContributions, memberInterests } from './group';
 
 const SHOW_THRESHOLD = 55; // below this Muse says "I'll keep looking"
 const KEEP_LOOKING_THRESHOLD = 65; // a new person must be this good to trigger "Muse found someone"
@@ -79,10 +79,15 @@ async function loadPool(excludeUserId: string): Promise<ScoutProfile[]> {
 
 // ─── Partner DNA from conversation ─────────────────────────────────────────
 
-const ONBOARDING_FOLLOWUPS = [
-  'What are you good at — and what are you still learning?',
-  'Where are you based, and when are you usually free?',
-];
+/** Ask only about what Muse doesn't know yet — never repeat a question the user already answered. */
+function nextFollowUp(dna: PartnerDNA, step: number): string | null {
+  if (step >= 2) return null;
+  if (dna.skills.length === 0 && dna.offers.length === 0) return 'What are you good at — and what are you still learning?';
+  const missing = [!dna.location && 'where you’re based', dna.availability.length === 0 && 'when you’re usually free'].filter(Boolean);
+  if (missing.length) return `Almost there — tell me ${missing.join(' and ')}.`;
+  if (step === 0) return 'What kind of people or projects are you hoping to find right now?';
+  return null;
+}
 
 export async function extractDna(userId: string, text: string, step: number): Promise<DnaExtractResponse> {
   const current = (await loadDna(userId)) ?? emptyDna();
@@ -91,7 +96,7 @@ export async function extractDna(userId: string, text: string, step: number): Pr
   if (!next.about && text.length > 20) next.about = text.slice(0, 280);
   const saved = await saveDna(userId, next, source);
   const addedItems = Object.values(added).flat().filter((x): x is string => typeof x === 'string');
-  const followUp = ONBOARDING_FOLLOWUPS[step] ?? null;
+  const followUp = nextFollowUp(saved, step);
   const fallback = addedItems.length
     ? `Got it — I added ${listToSentence(addedItems.slice(0, 4))} to your Partner DNA.${followUp ? ` ${followUp}` : ''}`
     : `Thanks! I didn't catch anything new there.${followUp ? ` ${followUp}` : ''}`;
@@ -100,7 +105,7 @@ export async function extractDna(userId: string, text: string, step: number): Pr
     { added, followUp },
     fallback,
   );
-  return { added, dna: saved, reply: reply.value, source };
+  return { added, dna: saved, reply: reply.value, source, done: followUp === null };
 }
 
 export async function undoDnaPatch(userId: string, patch: DnaPatch): Promise<PartnerDNA> {
@@ -156,16 +161,23 @@ export async function search(userId: string, text: string): Promise<ScoutSearchR
     if (pick && pick.members.some((m) => m.result.score >= SHOW_THRESHOLD)) {
       kind = 'group';
       const wanted = pick.wanted;
+      // Explore groups are about shared plans, not skills — describe them that way.
+      const social = intent.lens === 'explore';
+      const focus = [...canonicalizeAll(intent.interests), ...pick.sharedTraits];
+      const brings = (p: ScoutProfile) => (social ? memberInterests(p, focus) : memberContributions(p, wanted));
+      const everyone = [me, ...pick.members.map((m) => m.profile)];
       const members = [
-        { person: personView(me), isYou: true, contributes: memberContributions(me, wanted) },
-        ...pick.members.map((m) => ({ person: personView(m.profile), isYou: false, contributes: memberContributions(m.profile, wanted) })),
+        { person: personView(me), isYou: true, contributes: brings(me) },
+        ...pick.members.map((m) => ({ person: personView(m.profile), isYou: false, contributes: brings(m.profile) })),
       ];
-      const facts = members.map((m) => ({
-        name: m.isYou ? 'You' : m.person.firstName,
-        isYou: m.isYou,
-        skills: m.isYou ? me.dna.skills : (pool.find((p) => p.userId === m.person.id)?.dna.skills ?? []),
-        interests: m.isYou ? me.dna.interests : (pool.find((p) => p.userId === m.person.id)?.dna.interests ?? []),
-        contributes: m.contributes,
+      const facts = everyone.map((p, i) => ({
+        name: i === 0 ? 'You' : p.firstName,
+        isYou: i === 0,
+        skills: social ? [] : p.dna.skills,
+        interests: p.dna.interests,
+        contributes: members[i].contributes,
+        location: p.dna.location,
+        availability: p.dna.availability.map((slot) => TIME_SLOT_LABELS[slot]),
       }));
       const shared = pick.sharedTraits.map(labelOf);
       const [explanation, summary] = await Promise.all([
@@ -220,8 +232,13 @@ export async function search(userId: string, text: string): Promise<ScoutSearchR
   const reply = await museReply(
     kind === 'keep_looking'
       ? 'tell them nobody fits yet and that you will keep looking and notify them'
-      : 'introduce the results in one sentence, naming the top person or the group members',
-    { request: intent.summary, kind, names: people.map((p) => p.person.firstName) },
+      : 'introduce the results in one natural, conversational sentence (not a label like "For your X search"), naming the top person or the group members and the single strongest reason they fit',
+    {
+      request: intent.summary,
+      kind,
+      names: kind === 'group' ? (group?.members ?? []).filter((m) => !m.isYou).map((m) => m.person.firstName) : people.map((p) => p.person.firstName),
+      strongestReason: kind === 'group' ? (group?.explanation ?? null) : (people[0]?.reasons[0]?.text ?? null),
+    },
     fallbackMessage,
   );
 

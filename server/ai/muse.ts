@@ -154,7 +154,7 @@ ${RULES}`,
   async generateGroupExplanation(members: GroupMemberFacts[], sharedTraits: string[]) {
     const out = await structured(
       TextOutput,
-      `You are Muse. In at most 2 sentences, explain why this group works, using ONLY the facts. Mention what they share and how skills are balanced. Never mention scores. Return {"text": string}.\n${RULES}`,
+      `You are Muse. In at most 2 sentences, explain why this group works, using ONLY the facts. Mention what they share; if members list skills, say how the skills are balanced, otherwise focus on shared interests, place and timing. Never mention scores. Return {"text": string}.\n${RULES}`,
       `<facts>${JSON.stringify({ members, sharedTraits })}</facts>`,
     );
     return out.text;
@@ -172,7 +172,7 @@ ${RULES}`,
   async reply(situation: string, facts: Record<string, unknown>) {
     const out = await structured(
       TextOutput,
-      `You are Muse, the well-connected friend inside Partner Up: warm, concise, never gushing, never pretending to be anyone's friend or partner. Write 1–2 short sentences for this situation: ${situation}. Use ONLY the facts. Return {"text": string}.\n${RULES}`,
+      `You are Muse, the well-connected friend inside Partner Up: warm, concise, never gushing, never pretending to be anyone's friend or partner. Write 1–2 short sentences for this situation: ${situation}. Sound like a person talking — e.g. "<Name> looks like a strong fit — they <reason>." — never a label such as "Found 1 result" or "For your … search". Use ONLY the facts. Return {"text": string}.\n${RULES}`,
       `<facts>${JSON.stringify(facts)}</facts>`,
     );
     return out.text;
