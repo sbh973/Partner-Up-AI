@@ -42,9 +42,9 @@ export function TagInput({ label, value, onChange, suggestions = [], placeholder
         {label}
         {optional && <span className="text-xs font-normal text-muted">Optional</span>}
       </label>
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line-strong bg-white p-2 focus-within:border-rose/60 focus-within:ring-4 focus-within:ring-rose/15">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line-strong bg-white p-2 focus-within:border-ink focus-within:ring-4 focus-within:ring-banana">
         {value.map((tag) => (
-          <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-cream py-1 pr-1 pl-3 text-sm font-medium text-ink">
+          <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-banana-soft py-1 pr-1 pl-3 text-sm font-medium text-ink">
             {tag}
             <button
               type="button"

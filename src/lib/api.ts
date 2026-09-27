@@ -1,21 +1,18 @@
 import type {
   AppConfig,
   AppNotification,
-  ContactMethod,
-  DiscoverResponse,
-  FeedbackValue,
-  MatchDetail,
-  MatchesResponse,
+  ContactUpdateInput,
+  DnaExtractResponse,
+  DnaPatch,
   MeResponse,
-  MissingPartnerSuggestion,
-  Mode,
-  ModeProfileInput,
-  PartnerIntent,
-  PartnerUpResponse,
-  Partnership,
-  ProfileDraft,
-  ProfileInput,
-  StudyGroupSuggestion,
+  MutualOverview,
+  MutualPartnerUpResponse,
+  MutualSearchResponse,
+  PartnerDNA,
+  ProfileSetupInput,
+  ScoutConnectionView,
+  ScoutOverview,
+  ScoutSearchResponse,
 } from '../../shared/types';
 
 export class ApiError extends Error {
@@ -28,89 +25,77 @@ export class ApiError extends Error {
   }
 }
 
-type TokenGetter = () => Promise<string | null>;
-let getToken: TokenGetter = async () => null;
 let onUnauthorized: () => void = () => {};
-
-export function configureApi(options: { getToken: TokenGetter; onUnauthorized: () => void }): void {
-  getToken = options.getToken;
-  onUnauthorized = options.onUnauthorized;
+export function setUnauthorizedHandler(fn: () => void): void {
+  onUnauthorized = fn;
 }
 
-const FRIENDLY_OFFLINE = 'We couldn’t reach Partner Up. Check your connection and try again.';
-
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = await getToken();
+// Auth is an HttpOnly session cookie (JS can't read it). Every write carries
+// X-Partner-Up, which the server requires as CSRF protection.
+async function request<T>(method: string, path: string, body?: unknown, opts: { silent401?: boolean } = {}): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
       method,
-      headers: {
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Partner-Up': '1' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, 'offline', FRIENDLY_OFFLINE);
+    throw new ApiError(0, 'offline', 'We couldn’t reach Partner Up. Check your connection and try again.');
   }
   let payload: unknown = null;
   try {
     payload = await res.json();
   } catch {
-    // Non-JSON (e.g. proxy error page) — handled below.
+    // non-JSON (proxy error page) — handled below
   }
   if (!res.ok) {
     const err = (payload as { error?: { code?: string; message?: string } } | null)?.error;
-    if (res.status === 401) onUnauthorized();
+    if (res.status === 401 && !opts.silent401) onUnauthorized();
     throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? 'Something went wrong. Please try again.');
   }
   return payload as T;
 }
 
-export interface Tokens {
-  accessToken: string;
-  refreshToken: string | null;
-}
+type Ok = { ok: true };
 
 export const api = {
   config: () => request<AppConfig>('GET', '/api/config'),
-  signUp: (email: string, password: string) => request<Tokens>('POST', '/api/auth/signup', { email, password }),
-  signIn: (email: string, password: string) => request<Tokens>('POST', '/api/auth/login', { email, password }),
-  signOut: () => request<{ ok: true }>('POST', '/api/auth/logout'),
-  demo: () => request<Tokens>('POST', '/api/auth/demo'),
-  resetDemo: () => request<{ ok: true }>('POST', '/api/demo/reset'),
+  me: () => request<MeResponse>('GET', '/api/me', undefined, { silent401: true }),
+  signUp: (email: string, password: string) => request<Ok>('POST', '/api/auth/signup', { email, password }),
+  signIn: (email: string, password: string) => request<Ok>('POST', '/api/auth/login', { email, password }),
+  demo: (key: string) => request<Ok>('POST', `/api/auth/demo/${encodeURIComponent(key)}`),
+  signOut: () => request<Ok>('POST', '/api/auth/logout'),
+  setupProfile: (input: ProfileSetupInput) => request<MeResponse>('POST', '/api/profile', input),
+  updateContacts: (input: ContactUpdateInput) => request<MeResponse>('PUT', '/api/profile/contacts', input),
+  deleteAccount: () => request<Ok>('DELETE', '/api/account'),
 
-  me: () => request<MeResponse>('GET', '/api/me'),
-  saveProfile: (profile: ProfileInput) => request<MeResponse>('PUT', '/api/profile', profile),
-  saveModeProfile: (mode: Mode, input: ModeProfileInput) => request<MeResponse>('PUT', `/api/mode-profiles/${mode}`, input),
-  saveContacts: (contacts: ContactMethod[]) => request<MeResponse>('PUT', '/api/contacts', { contacts }),
-  regenerateDna: () => request<MeResponse>('POST', '/api/dna/generate'),
-  deleteAccount: () => request<{ ok: true }>('DELETE', '/api/account'),
-  profileDraft: (text: string, mode: Mode) => request<ProfileDraft>('POST', '/api/ai/profile-draft', { text, mode }),
+  mutual: () => request<MutualOverview>('GET', '/api/mutual'),
+  mutualSearch: (firstName: string, lastName: string) => request<MutualSearchResponse>('POST', '/api/mutual/search', { firstName, lastName }),
+  mutualPartnerUp: (targetId: string) => request<MutualPartnerUpResponse>('POST', '/api/mutual/partner-up', { targetId }),
+  mutualSaveForJoin: (firstName: string, lastName: string) => request<MutualPartnerUpResponse>('POST', '/api/mutual/save-for-join', { firstName, lastName }),
+  mutualWithdraw: (id: string) => request<Ok>('POST', `/api/mutual/requests/${id}/withdraw`),
+  mutualEnd: (id: string) => request<Ok>('POST', `/api/mutual/matches/${id}/end`),
 
-  discover: (mode: Mode | null, text?: string) => request<DiscoverResponse>('POST', '/api/discover', { mode, text }),
-  matchDetail: (targetId: string, mode: Mode, intent: PartnerIntent | null) =>
-    request<MatchDetail>('POST', '/api/match/detail', { targetId, mode, intent }),
-  partnerUp: (targetId: string, mode: Mode, intent: PartnerIntent | null) =>
-    request<PartnerUpResponse>('POST', '/api/partner-up', { targetId, mode, intent }),
-  withdraw: (requestId: string) => request<{ ok: true }>('DELETE', `/api/partner-up/${requestId}`),
-  matches: () => request<MatchesResponse>('GET', '/api/matches'),
-  partnership: (id: string) => request<Partnership>('GET', `/api/partnerships/${id}`),
-  endPartnership: (id: string) => request<{ ok: true }>('POST', `/api/partnerships/${id}/end`),
-  feedback: (targetId: string, mode: Mode, value: FeedbackValue) => request<{ ok: true }>('POST', '/api/feedback', { targetId, mode, value }),
-
-  buildGroup: (subjects: string[] | undefined, size: number) => request<StudyGroupSuggestion>('POST', '/api/groups/build', { subjects, size }),
-  completeGroup: (memberIds: string[], subjects: string[], subject: string) =>
-    request<MissingPartnerSuggestion>('POST', '/api/groups/complete', { memberIds, subjects, subject }),
-  partnerUpGroup: (memberIds: string[], subjects: string[]) =>
-    request<{ results: Array<{ profileId: string } & PartnerUpResponse> }>('POST', '/api/groups/partner-up', { memberIds, subjects }),
+  scout: () => request<ScoutOverview>('GET', '/api/scout'),
+  scoutSearch: (text: string) => request<ScoutSearchResponse>('POST', '/api/scout/search', { text }),
+  dnaExtract: (text: string, step: number) => request<DnaExtractResponse>('POST', '/api/scout/dna/extract', { text, step }),
+  dnaUndo: (patch: DnaPatch) => request<PartnerDNA>('POST', '/api/scout/dna/undo', patch),
+  dnaSave: (dna: Omit<PartnerDNA, 'lastSource' | 'updatedAt'>) => request<MeResponse>('PUT', '/api/scout/dna', dna),
+  scoutPartnerUp: (requestId: string, candidateIds: string[]) => request<ScoutConnectionView[]>('POST', '/api/scout/partner-up', { requestId, candidateIds }),
+  scoutConnection: (id: string) => request<ScoutConnectionView>('GET', `/api/scout/connections/${id}`),
+  scoutRespond: (id: string, accept: boolean) => request<ScoutConnectionView>('POST', `/api/scout/connections/${id}/respond`, { accept }),
+  scoutStop: (id: string) => request<Ok>('POST', `/api/scout/requests/${id}/stop`),
 
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
-  markNotificationsRead: () => request<{ ok: true }>('POST', '/api/notifications/read'),
+  markRead: () => request<Ok>('POST', '/api/notifications/read'),
+
+  demoReset: () => request<Ok>('POST', '/api/demo/reset'),
+  demoNewStudent: () => request<{ joined: boolean; found: number }>('POST', '/api/demo/new-student'),
 };
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
-  return 'Partner AI is taking a break. Your profile is safe — try again shortly.';
+  return 'Something went wrong. Please try again.';
 }

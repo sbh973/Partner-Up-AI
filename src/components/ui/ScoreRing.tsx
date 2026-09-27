@@ -7,10 +7,16 @@ interface ScoreRingProps {
   stroke?: number;
   label?: string;
   showLabel?: boolean;
+  system?: 'scout' | 'mutual';
 }
 
-/** Animated Partner Match score. The number is our model's score, not a probability. */
-export function ScoreRing({ score, size = 96, stroke = 9, label = 'Partner Match', showLabel = false }: ScoreRingProps) {
+const STOPS = {
+  scout: ['#2bb4ee', '#79d7ff'],
+  mutual: ['#ff8a57', '#ffb38a'],
+};
+
+/** Animated match score. It comes from our deterministic engine — not a probability, never from AI. */
+export function ScoreRing({ score, size = 96, stroke = 9, label = 'match', showLabel = false, system = 'scout' }: ScoreRingProps) {
   const id = useId();
   const reduce = useReducedMotion();
   const radius = (size - stroke) / 2;
@@ -33,12 +39,11 @@ export function ScoreRing({ score, size = 96, stroke = 9, label = 'Partner Match
       <svg width={size} height={size} className="-rotate-90">
         <defs>
           <linearGradient id={`g-${id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#ffc53d" />
-            <stop offset="55%" stopColor="#ff8a5c" />
-            <stop offset="100%" stopColor="#ff4d8d" />
+            <stop offset="0%" stopColor={STOPS[system][0]} />
+            <stop offset="100%" stopColor={STOPS[system][1]} />
           </linearGradient>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f6eec9" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#efede3" strokeWidth={stroke} />
         <motion.circle
           cx={size / 2}
           cy={size / 2}
@@ -52,7 +57,7 @@ export function ScoreRing({ score, size = 96, stroke = 9, label = 'Partner Match
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
-        <span className="font-display font-bold leading-none text-ink" style={{ fontSize: size * 0.28 }}>
+        <span className="font-extrabold leading-none tracking-tight text-ink" style={{ fontSize: size * 0.28 }}>
           <motion.span>{rounded}</motion.span>
           <span style={{ fontSize: size * 0.15 }}>%</span>
         </span>

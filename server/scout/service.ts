@@ -349,6 +349,7 @@ async function connectionView(row: ConnectionRow, viewerId: string): Promise<Sco
     other: personView(other),
     score: row.score,
     reasons: role === 'requester' ? exp.forRequester : exp.forCandidate,
+    requestId: row.requestId,
     requestSummary: exp.requestSummary,
     youAccepted: role === 'requester' ? row.requesterAccepted : row.candidateAccepted,
     theyAccepted: role === 'requester' ? row.candidateAccepted : row.requesterAccepted,

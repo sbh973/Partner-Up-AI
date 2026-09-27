@@ -2,40 +2,33 @@ import { MotionConfig } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
-import { ErrorNote, PageLoader } from './components/ui/Feedback';
+import { PageLoader } from './components/ui/Feedback';
 import { ToastProvider } from './components/ui/Toast';
-import { AuthProvider, useAuth } from './lib/auth';
-import { MeBoundary, useMe } from './lib/me';
+import { SessionProvider, useSession } from './lib/session';
+import { AccountPage } from './pages/AccountPage';
 import { AuthPage } from './pages/AuthPage';
-import { DiscoverPage } from './pages/DiscoverPage';
-import { GroupsPage } from './pages/GroupsPage';
-import { HomePage } from './pages/HomePage';
+import { ConnectionPage } from './pages/ConnectionPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { DnaPage } from './pages/DnaPage';
+import { InboxPage } from './pages/InboxPage';
 import { LandingPage } from './pages/LandingPage';
-import { MatchDetailPage } from './pages/MatchDetailPage';
-import { MatchesPage } from './pages/MatchesPage';
+import { MutualPage } from './pages/MutualPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { OnboardingPage } from './pages/OnboardingPage';
-import { PartnershipPage } from './pages/PartnershipPage';
-import { ProfilePage } from './pages/ProfilePage';
+import { ScoutPage } from './pages/ScoutPage';
+import { SetupPage } from './pages/SetupPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status } = useSession();
   const location = useLocation();
   if (status === 'loading') return <PageLoader />;
-  if (status === 'signed_out') {
-    const next = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/auth?next=${next}`} replace />;
-  }
+  if (status === 'signed_out') return <Navigate to={`/auth?next=${encodeURIComponent(location.pathname)}`} replace />;
   return <>{children}</>;
 }
 
-/** Everything under /app needs a Partner Profile first (except onboarding itself). */
+/** Everything in the app needs a profile first (name, gender, age, contact). */
 function RequireProfile() {
-  const { me, loading, error, refresh } = useMe();
-  const location = useLocation();
-  if (loading && !me) return <PageLoader label="Loading your Partner DNA…" />;
-  if (error && !me) return <ErrorNote message={error} onRetry={() => void refresh()} />;
-  if (me && !me.profile) return <Navigate to={`/app/start${location.search}`} replace />;
+  const { me } = useSession();
+  if (me && !me.profile) return <Navigate to="/app/setup" replace />;
   return <Outlet />;
 }
 
@@ -44,35 +37,39 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <BrowserRouter>
         <ToastProvider>
-          <AuthProvider>
-            <MeBoundary>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route
-                  path="/app"
-                  element={
-                    <RequireAuth>
-                      <AppShell />
-                    </RequireAuth>
-                  }
-                >
-                  <Route path="start" element={<OnboardingPage />} />
-                  <Route path="start/:mode" element={<OnboardingPage />} />
-                  <Route element={<RequireProfile />}>
-                    <Route index element={<HomePage />} />
-                    <Route path="discover" element={<DiscoverPage />} />
-                    <Route path="match/:id" element={<MatchDetailPage />} />
-                    <Route path="matches" element={<MatchesPage />} />
-                    <Route path="partnership/:id" element={<PartnershipPage />} />
-                    <Route path="groups" element={<GroupsPage />} />
-                    <Route path="profile" element={<ProfilePage />} />
-                  </Route>
+          <SessionProvider>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route
+                path="/app/setup"
+                element={
+                  <RequireAuth>
+                    <SetupPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/app"
+                element={
+                  <RequireAuth>
+                    <AppShell />
+                  </RequireAuth>
+                }
+              >
+                <Route element={<RequireProfile />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="mutual" element={<MutualPage />} />
+                  <Route path="scout" element={<ScoutPage />} />
+                  <Route path="scout/connection/:id" element={<ConnectionPage />} />
+                  <Route path="dna" element={<DnaPage />} />
+                  <Route path="inbox" element={<InboxPage />} />
+                  <Route path="account" element={<AccountPage />} />
                 </Route>
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </MeBoundary>
-          </AuthProvider>
+              </Route>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </SessionProvider>
         </ToastProvider>
       </BrowserRouter>
     </MotionConfig>

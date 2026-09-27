@@ -1,102 +1,77 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Lock, Play, ShieldCheck, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, EyeOff, HeartHandshake, Lock, Radar, Sparkles, UsersRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Mode } from '../../shared/types';
-import { PartnerPrompt } from '../components/ai/PartnerPrompt';
-import { Logo, LogoMark } from '../components/brand/Logo';
-import { ModeCard } from '../components/modes/ModeCard';
-import { Avatar } from '../components/ui/Avatar';
+import { Logo, LogoMark, MuseBadge } from '../components/brand/Logo';
 import { Button, ButtonLink } from '../components/ui/Button';
-import { ScoreRing } from '../components/ui/ScoreRing';
-import { useToast } from '../components/ui/Toast';
-import { useAuth } from '../lib/auth';
-import { MODE_ORDER } from '../lib/modes';
-import { setPendingPrompt } from '../lib/session';
+import { useSession } from '../lib/session';
 
-const STEPS = [
-  { title: 'Tell us about yourself', body: 'A short, mode-specific survey — or just describe yourself in a sentence.' },
-  { title: 'Tell us who you need', body: '“Someone to study chem with at night.” Plain words are enough.' },
-  { title: 'AI understands your intent', body: 'Partner AI works out what you need, what you offer, and what matters.' },
-  { title: 'Discover mutual matches', body: 'People who need what you offer — and offer what you need — with the why.' },
-  { title: 'Partner Up when it’s mutual', body: 'Your choice stays private. Contact info unlocks only if you both say yes.' },
-];
+const fade = (delay = 0) => ({ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } });
 
-const FORMULA = [
-  { label: 'Partner DNA', q: 'Who am I?' },
-  { label: 'Partner Intent', q: 'Who do I need?' },
-  { label: 'Mutual Value', q: 'What can we offer each other?' },
-  { label: 'Mutual Consent', q: 'Do we both want to connect?' },
-];
-
-function HeroPreview() {
+function ModeCard({ system, delay }: { system: 'mutual' | 'scout'; delay: number }) {
+  const navigate = useNavigate();
+  const { status } = useSession();
+  const mutual = system === 'mutual';
+  const go = () => navigate(status === 'signed_in' ? `/app/${system}` : `/auth?next=${encodeURIComponent(`/app/${system}`)}`);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, rotate: 1 }}
-      animate={{ opacity: 1, y: 0, rotate: 0 }}
-      transition={{ delay: 0.2, duration: 0.6 }}
-      className="relative mx-auto w-full max-w-sm"
-      aria-hidden
+    <motion.article
+      {...fade(delay)}
+      whileHover={{ y: -6 }}
+      className={`relative flex min-h-[26rem] flex-col overflow-hidden rounded-[2rem] p-7 shadow-soft sm:p-9 ${mutual ? 'grad-mutual' : 'grad-scout'}`}
     >
-      <div className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-sun/40 via-[#ffb38a]/30 to-rose/30 blur-2xl" />
-      <div className="card relative p-5">
-        <div className="flex items-center gap-3">
-          <Avatar name="Maya Chen" hue={350} size="lg" />
-          <div className="flex-1">
-            <p className="font-display text-lg font-bold">Maya Chen</p>
-            <p className="text-sm text-muted">Georgia Tech · Atlanta</p>
-            <p className="text-sm font-semibold text-learn">📚 Mutual learning match</p>
-          </div>
-          <ScoreRing score={95} size={70} stroke={7} />
-        </div>
-        <div className="mt-4 space-y-2.5 rounded-2xl bg-canvas p-4 text-sm">
-          <p>
-            <span aria-hidden>🧪</span> <strong>Maya can help you</strong> with Chemistry
-          </p>
-          <p>
-            <span aria-hidden>📈</span> <strong>You can help Maya</strong> with Calculus
-          </p>
-          <p>
-            <span aria-hidden>🌙</span> Both usually free <strong>at night</strong>
-          </p>
-        </div>
-        <div className="brand-gradient mt-4 flex h-11 items-center justify-center rounded-2xl font-semibold text-ink">Partner Up 🤝</div>
+      <div className="absolute -right-16 -bottom-16 size-64 rounded-full bg-white/30 blur-2xl" aria-hidden />
+      <span className="relative flex size-12 items-center justify-center rounded-2xl bg-white/70 text-ink">
+        {mutual ? <HeartHandshake className="size-6" aria-hidden /> : <Radar className="size-6" aria-hidden />}
+      </span>
+      <h2 className="relative mt-6 text-5xl sm:text-6xl">{mutual ? 'Mutual' : 'Scout'}</h2>
+      <p className="relative mt-2 text-xl font-extrabold tracking-tight">
+        You know <span className="rounded-md bg-white/70 px-1.5">{mutual ? 'WHO' : 'WHAT'}</span>.
+      </p>
+      <p className="relative mt-4 max-w-md text-lg leading-relaxed font-medium text-ink-2">
+        {mutual
+          ? 'Make the move without making it awkward. Your feelings stay private unless they’re mutual.'
+          : 'Tell me who you need. Muse finds the people who fit. If they’re not here yet, Muse keeps looking.'}
+      </p>
+      <ul className="relative mt-6 space-y-2 text-sm font-semibold text-ink-2">
+        {(mutual
+          ? [
+              [EyeOff, 'Nobody ever sees who chose them'],
+              [Lock, 'Contact info unlocks only when it’s mutual'],
+            ]
+          : [
+              [Sparkles, 'Muse understands what you need'],
+              [UsersRound, 'People or whole groups — both must say yes'],
+            ]
+        ).map(([Icon, text]) => {
+          const I = Icon as typeof Lock;
+          return (
+            <li key={text as string} className="flex items-center gap-2">
+              <I className="size-4 shrink-0" aria-hidden /> {text as string}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="relative mt-auto pt-8">
+        <Button variant="primary" size="lg" onClick={go} icon={<ArrowRight className="size-5" aria-hidden />}>
+          {mutual ? 'Try Mutual' : 'Ask Muse'}
+        </Button>
       </div>
-      <div className="card absolute -bottom-6 -left-6 hidden animate-float items-center gap-2 px-3 py-2 text-sm font-semibold sm:flex">
-        <Lock className="size-4 text-rose" /> Only revealed if it’s mutual
-      </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
+const FRAMEWORK = [
+  ['You know WHO', 'Mutual'],
+  ['You know WHAT', 'Scout'],
+  ['Muse understands', 'Partner DNA'],
+  ['If no one fits', 'Muse keeps looking'],
+  ['When both sides align', 'Partner Up'],
+];
+
 export function LandingPage() {
-  const { status, signInDemo } = useAuth();
-  const navigate = useNavigate();
-  const toast = useToast();
-  const [demoBusy, setDemoBusy] = useState(false);
+  const { status } = useSession();
   const signedIn = status === 'signed_in';
-
-  const goFind = (mode?: Mode) => navigate(mode ? `/app/discover?mode=${mode}` : '/app/discover');
-
-  const startDemo = async () => {
-    setDemoBusy(true);
-    try {
-      await signInDemo();
-      navigate('/app');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'The demo is unavailable right now.', 'error');
-    } finally {
-      setDemoBusy(false);
-    }
-  };
-
-  const onPrompt = (text: string) => {
-    setPendingPrompt(text);
-    navigate('/app/discover');
-  };
-
   return (
-    <div className="overflow-x-clip">
+    <div className="overflow-x-clip bg-canvas">
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-2" aria-label="Account">
@@ -109,127 +84,116 @@ export function LandingPage() {
               <ButtonLink to="/auth" variant="ghost" size="sm">
                 Sign in
               </ButtonLink>
-              <Button variant="primary" size="sm" onClick={startDemo} loading={demoBusy} icon={!demoBusy && <Play className="size-3.5" aria-hidden />}>
-                Live demo
-              </Button>
+              <ButtonLink to="/auth?tab=signup" variant="primary" size="sm">
+                Get Started
+              </ButtonLink>
             </>
           )}
         </nav>
       </header>
 
       <main>
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-6 pb-16 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-14 lg:pb-24">
-          <div>
-            <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink-soft shadow-soft">
-              <Sparkles className="size-4 text-rose" aria-hidden /> AI that helps humans find the humans they need
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="mt-5 text-5xl leading-[1.02] font-extrabold sm:text-6xl lg:text-7xl"
-            >
-              Whatever you’re doing, find the <span className="brand-text">right person</span> to do it with.
-            </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
-              Tell us what you’re looking for. Partner AI finds people who need what you offer — and offer what you need.
-            </motion.p>
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 flex flex-wrap gap-3">
-              <Button variant="brand" size="lg" onClick={() => goFind()} icon={<ArrowRight className="size-5" aria-hidden />}>
-                Find My Partner
-              </Button>
-              <a href="#how" className="inline-flex h-14 items-center rounded-2xl px-6 font-medium text-ink-soft hover:bg-ink/5">
-                See how it works
-              </a>
-            </motion.div>
-            <p className="mt-5 flex items-center gap-2 text-sm text-muted">
-              <ShieldCheck className="size-4 text-good" aria-hidden /> Your interest stays private unless it’s mutual.
-            </p>
-          </div>
-          <HeroPreview />
+        <section className="mx-auto max-w-6xl px-4 pt-10 pb-12 text-center sm:px-6 sm:pt-16">
+          <motion.div {...fade(0)} className="flex justify-center">
+            <MuseBadge />
+          </motion.div>
+          <motion.h1 {...fade(0.05)} className="mx-auto mt-6 max-w-4xl text-6xl leading-[0.95] sm:text-8xl">
+            Partner Up
+          </motion.h1>
+          <motion.p {...fade(0.1)} className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed font-medium text-ink-2 sm:text-2xl">
+            One platform for the people you <span className="highlight font-bold text-ink">already know</span> — and the people you{' '}
+            <span className="highlight font-bold text-ink">need to find</span>.
+          </motion.p>
+          <motion.div {...fade(0.15)} className="mt-9 flex flex-wrap justify-center gap-3">
+            <ButtonLink to={signedIn ? '/app' : '/auth?tab=signup'} variant="primary" size="lg" icon={<ArrowRight className="size-5" aria-hidden />}>
+              Get Started
+            </ButtonLink>
+            <a href="#how" className="inline-flex min-h-14 items-center rounded-full px-6 font-semibold text-ink-2 hover:bg-ink/5">
+              How it works
+            </a>
+          </motion.div>
         </section>
 
-        {/* Modes */}
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6" aria-labelledby="modes-title">
-          <h2 id="modes-title" className="text-3xl font-bold sm:text-4xl">
-            What are you looking for?
-          </h2>
-          <p className="mt-2 max-w-2xl text-ink-soft">Same AI, different definition of a great match. Compatibility depends on what you want to do together.</p>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {MODE_ORDER.map((mode) => (
-              <ModeCard key={mode} mode={mode} onSelect={goFind} />
-            ))}
-          </div>
-          <div className="mt-10">
-            <p className="mb-3 font-display text-xl font-bold">✨ Or tell Partner AI what you need…</p>
-            <PartnerPrompt onSubmit={onPrompt} />
-          </div>
+        <section className="mx-auto grid max-w-6xl gap-5 px-4 pb-16 sm:px-6 md:grid-cols-2" aria-label="The two sides of Partner Up">
+          <ModeCard system="mutual" delay={0.2} />
+          <ModeCard system="scout" delay={0.28} />
         </section>
 
-        {/* How it works */}
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-8 px-4 py-16 sm:px-6" aria-labelledby="how-title">
-          <h2 id="how-title" className="text-3xl font-bold sm:text-4xl">
-            How it works
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-8 px-4 py-16 sm:px-6">
+          <p className="eyebrow text-center">The well-connected friend everyone wishes they had</p>
+          <h2 className="mx-auto mt-3 max-w-3xl text-center text-4xl sm:text-5xl">
+            Sometimes that friend knows <span className="highlight">“you two like each other.”</span> Sometimes they know{' '}
+            <span className="highlight">“I know exactly who you need.”</span>
           </h2>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {STEPS.map((s, i) => (
-              <li key={s.title} className="card p-5">
-                <span className="brand-gradient flex size-9 items-center justify-center rounded-xl font-display font-bold text-ink">{i + 1}</span>
-                <h3 className="mt-4 text-lg font-bold">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="card mt-10 p-6 sm:p-8">
-            <p className="eyebrow">The Partner Up formula</p>
-            <div className="mt-5 grid items-center gap-3 md:grid-cols-[repeat(4,1fr)_auto]">
-              {FORMULA.map((f, i) => (
-                <div key={f.label} className="flex items-center gap-3 md:block">
-                  <div className="flex-1 rounded-2xl bg-canvas p-4">
-                    <p className="font-display text-lg font-bold">{f.label}</p>
-                    <p className="text-sm text-muted">{f.q}</p>
-                  </div>
-                  <span className="font-display text-2xl font-bold text-muted md:hidden" aria-hidden>
-                    {i < FORMULA.length - 1 ? '+' : '='}
-                  </span>
-                </div>
-              ))}
-              <div className="brand-gradient rounded-2xl p-4 text-center font-display text-xl font-extrabold text-ink">Partner Up 🤝</div>
+          <div className="mt-12 grid gap-5 md:grid-cols-2">
+            <div className="card p-7">
+              <p className="inline-flex items-center gap-2 rounded-full bg-peach-soft px-3 py-1 text-sm font-bold text-peach-ink">
+                <HeartHandshake className="size-4" aria-hidden /> Mutual · no AI, on purpose
+              </p>
+              <ol className="mt-5 space-y-4">
+                {['Search someone you already know by first + last name.', 'Privately Partner Up. They’re never told who.', 'If they independently choose you too — it’s mutual, and contact info unlocks.'].map((t, i) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-peach text-sm font-extrabold">{i + 1}</span>
+                    <span className="pt-0.5 font-medium">{t}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="card p-7">
+              <p className="inline-flex items-center gap-2 rounded-full bg-sky-soft px-3 py-1 text-sm font-bold text-sky-ink">
+                <Radar className="size-4" aria-hidden /> Scout · powered by Muse
+              </p>
+              <ol className="mt-5 space-y-4">
+                {['Tell Muse about yourself — it builds your editable Partner DNA.', 'Say what you need: “a roommate at KSU”, “a 4-person hackathon team”.', 'Muse finds people (or keeps looking). Both sides say yes before anyone connects.'].map((t, i) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sky text-sm font-extrabold">{i + 1}</span>
+                    <span className="pt-0.5 font-medium">{t}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
+
+          <div className="card mt-5 p-6 sm:p-8">
+            <p className="eyebrow">The Partner Up framework</p>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-5">
+              {FRAMEWORK.map(([k, v]) => (
+                <li key={k} className="rounded-2xl bg-canvas p-4">
+                  <p className="text-sm font-semibold text-muted">{k}</p>
+                  <p className="mt-1 text-lg font-extrabold tracking-tight">→ {v}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
 
-        {/* Philosophy */}
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-white px-6 py-14 text-center text-ink shadow-soft sm:px-12">
-            <div className="brand-gradient absolute -top-24 left-1/2 size-72 -translate-x-1/2 rounded-full opacity-30 blur-3xl" aria-hidden />
+        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-ink px-6 py-16 text-center sm:px-12">
+            <div className="grad-brand absolute -top-32 left-1/2 size-96 -translate-x-1/2 rounded-full opacity-30 blur-3xl" aria-hidden />
             <LogoMark className="relative mx-auto size-12" />
-            <h2 className="relative mx-auto mt-6 max-w-3xl text-4xl sm:text-6xl">
-              AI shouldn’t replace human connection. It should create more of it.
-            </h2>
-            <p className="relative mx-auto mt-5 max-w-2xl text-lg text-ink-soft">
-              Partner AI understands people, intent, and what each person can offer — explains why a connection makes sense — then gets out of the way.
+            <h2 className="relative mx-auto mt-6 max-w-3xl text-4xl text-white sm:text-6xl">AI shouldn’t replace human connection. It should help create it.</h2>
+            <p className="relative mx-auto mt-5 max-w-2xl text-lg text-white/75">
+              Social media helps you keep connections. Partner Up helps create them — and the final connection is always between real people.
             </p>
-            <div className="relative mt-8 flex flex-wrap justify-center gap-3">
-              <Button variant="brand" size="lg" onClick={() => goFind()}>
-                Find My Partner
-              </Button>
-              {!signedIn && (
-                <Button variant="secondary" size="lg" onClick={startDemo} loading={demoBusy}>
-                  Try the live demo
-                </Button>
-              )}
+            <div className="relative mt-8">
+              <ButtonLink to={signedIn ? '/app' : '/auth?tab=signup'} variant="scout" size="lg">
+                Get Started
+              </ButtonLink>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 pt-4 pb-10 text-sm text-muted sm:flex-row sm:px-6">
-        <p className="font-display font-semibold text-ink-soft">AI doesn’t become your friend. It helps you find one.</p>
+      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 pt-2 pb-10 text-sm text-muted sm:flex-row sm:px-6">
+        <div className="flex items-center gap-3">
+          <span className="font-extrabold text-ink">Partner Up</span>
+          <MuseBadge />
+        </div>
         <p>
-          Built at HackGT 13 · <Link to="/auth" className="underline underline-offset-4">Sign in</Link>
+          Built at HackGT 13 ·{' '}
+          <Link to="/auth" className="font-semibold text-ink underline underline-offset-4">
+            Sign in
+          </Link>
         </p>
       </footer>
     </div>

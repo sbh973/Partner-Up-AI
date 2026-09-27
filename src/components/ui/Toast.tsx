@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 className="pointer-events-auto flex max-w-md items-start gap-2.5 rounded-2xl bg-ink px-4 py-3 text-sm text-white shadow-lift"
                 role={t.tone === 'error' ? 'alert' : 'status'}
               >
-                <Icon className={`mt-0.5 size-4 shrink-0 ${t.tone === 'error' ? 'text-rose' : t.tone === 'success' ? 'text-sun' : 'text-white/80'}`} aria-hidden />
+                <Icon className={`mt-0.5 size-4 shrink-0 ${t.tone === 'error' ? 'text-peach' : t.tone === 'success' ? 'text-banana' : 'text-white/80'}`} aria-hidden />
                 <span>{t.message}</span>
               </motion.div>
             );

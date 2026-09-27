@@ -27,7 +27,7 @@ export function FieldShell({ label, hint, error, children, optional }: FieldShel
         </p>
       )}
       {error && (
-        <p id={errorId} className="text-sm font-medium text-rose-deep" role="alert">
+        <p id={errorId} className="text-sm font-medium text-danger" role="alert">
           {error}
         </p>
       )}

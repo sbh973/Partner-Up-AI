@@ -251,6 +251,7 @@ export interface ScoutConnectionView {
   other: ScoutPerson;
   score: number;
   reasons: ScoutReason[];
+  requestId: string;
   requestSummary: string;
   youAccepted: boolean;
   theyAccepted: boolean;

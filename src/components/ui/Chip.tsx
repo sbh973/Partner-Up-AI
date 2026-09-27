@@ -1,37 +1,30 @@
 import type { ReactNode } from 'react';
 
-type Tone = 'neutral' | 'connect' | 'learn' | 'explore' | 'good' | 'warn' | 'brand';
+export type ChipTone = 'neutral' | 'mutual' | 'scout' | 'banana' | 'good' | 'warn';
 
-const TONES: Record<Tone, string> = {
-  neutral: 'bg-ink/[0.05] text-ink-soft',
-  connect: 'bg-connect-soft text-connect',
-  learn: 'bg-learn-soft text-learn',
-  explore: 'bg-explore-soft text-explore',
+const TONES: Record<ChipTone, string> = {
+  neutral: 'bg-ink/[0.05] text-ink-2',
+  mutual: 'bg-peach-soft text-peach-ink',
+  scout: 'bg-sky-soft text-sky-ink',
+  banana: 'bg-banana-soft text-ink',
   good: 'bg-good-soft text-good',
   warn: 'bg-warn-soft text-warn',
-  brand: 'bg-cream text-ink',
 };
 
 interface ChipProps {
   children: ReactNode;
-  emoji?: string;
-  tone?: Tone;
+  tone?: ChipTone;
   size?: 'sm' | 'md';
+  icon?: ReactNode;
   className?: string;
 }
 
-export function Chip({ children, emoji, tone = 'neutral', size = 'md', className = '' }: ChipProps) {
+export function Chip({ children, tone = 'neutral', size = 'md', icon, className = '' }: ChipProps) {
   return (
     <span
-      className={`inline-flex max-w-full items-center gap-1.5 rounded-full font-medium ${
-        size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'
-      } ${TONES[tone]} ${className}`}
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-full font-semibold ${size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'} ${TONES[tone]} ${className}`}
     >
-      {emoji && (
-        <span aria-hidden className="leading-none">
-          {emoji}
-        </span>
-      )}
+      {icon}
       <span className="truncate">{children}</span>
     </span>
   );

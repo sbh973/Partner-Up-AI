@@ -1,46 +1,51 @@
 @import 'tailwindcss';
 
+/*
+  Partner Up design tokens.
+  One brand anchor (banana) + one partner color per system:
+    Mutual = banana → peach   (warm, personal, private)
+    Scout  = banana → sky     (fresh, exploratory, AI-enabled)
+  White cards, black text. All text pairs verified ≥ 4.5:1 (most ≥ 6:1).
+*/
 @theme {
-  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Mansalva', 'Nunito Sans', cursive;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  /* Sunny canvas, warm-charcoal text, white cards */
-  --color-canvas: #feed9f;
+  --color-ink: #0f0f0f;
+  --color-ink-2: #2e2e2e;
+  --color-muted: #5c5c5c;
+  --color-line: #ebe8dc;
+  --color-line-strong: #d9d5c4;
+  --color-canvas: #fffdf5;
   --color-surface: #ffffff;
-  --color-ink: #504c41;
-  --color-ink-soft: #57533f;
-  --color-muted: #635e4f;
-  --color-line: #efe2ae;
-  --color-line-strong: #dfcd8a;
 
-  --color-sun: #ffc53d;
-  --color-sun-deep: #f5a300;
-  --color-rose: #ff4d8d;
-  --color-rose-deep: #d92a6b;
-  --color-blush: #fff0f5;
-  --color-cream: #fff6cf;
+  --color-banana: #fffc79;
+  --color-banana-soft: #fffed6;
+  --color-banana-hover: #f5f25c;
 
-  /* Mode personalities */
-  --color-connect: #cc1f5c;
-  --color-connect-soft: #ffe7ef;
-  --color-learn: #955400;
-  --color-learn-soft: #fff1d1;
-  --color-explore: #08695f;
-  --color-explore-soft: #daf4ef;
+  --color-peach: #ffb38a;
+  --color-peach-soft: #ffeade;
+  --color-peach-ink: #9a3f12;
+  --color-mutual-surface: #fff6ee;
 
-  --color-good: #0c6e4b;
-  --color-good-soft: #dff5ea;
-  --color-warn: #a35a00;
-  --color-warn-soft: #fff1dc;
+  --color-sky: #79d7ff;
+  --color-sky-soft: #def4ff;
+  --color-sky-ink: #045d86;
+  --color-scout-surface: #f1f9ff;
 
-  --radius-4xl: 2rem;
+  --color-good: #0b6b47;
+  --color-good-soft: #ddf5e9;
+  --color-warn: #8a4b00;
+  --color-warn-soft: #fff0da;
+  --color-danger: #b42318;
+  --color-danger-soft: #fee4e2;
 
-  --shadow-soft: 0 1px 2px rgb(30 26 36 / 0.04), 0 8px 24px -12px rgb(30 26 36 / 0.12);
-  --shadow-lift: 0 2px 4px rgb(30 26 36 / 0.05), 0 18px 40px -18px rgb(30 26 36 / 0.25);
-  --shadow-glow: 0 10px 40px -12px rgb(255 77 141 / 0.45);
+  --shadow-soft: 0 1px 2px rgb(15 15 15 / 0.04), 0 8px 24px -14px rgb(15 15 15 / 0.14);
+  --shadow-lift: 0 2px 6px rgb(15 15 15 / 0.05), 0 22px 44px -22px rgb(15 15 15 / 0.28);
 
-  --animate-float: float 6s ease-in-out infinite;
-  --animate-shimmer: shimmer 2.2s linear infinite;
+  --radius-card: 1.5rem;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -56,24 +61,25 @@
   :root {
     color-scheme: light;
   }
-  html {
-    -webkit-text-size-adjust: 100%;
-    text-rendering: optimizeLegibility;
-  }
   body {
     @apply bg-canvas font-sans text-ink antialiased;
     min-height: 100dvh;
+    font-feature-settings: 'ss01';
   }
   h1, h2, h3, h4 {
-    @apply font-display tracking-tight text-ink;
+    @apply font-extrabold tracking-[-0.035em] text-ink;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
   ::selection {
-    background: rgb(255 168 197 / 0.55);
+    background: rgb(255 252 121 / 0.9);
   }
   :focus-visible {
-    outline: 3px solid var(--color-rose);
+    outline: 3px solid var(--color-ink);
     outline-offset: 2px;
-    border-radius: 0.5rem;
+    border-radius: 0.6rem;
   }
   button, [role='button'] {
     cursor: pointer;
@@ -84,26 +90,23 @@
 }
 
 @layer components {
-  /* Pastel peach → pink: stands out on the yellow canvas and keeps text readable */
-  .brand-gradient {
-    background-image: linear-gradient(120deg, #ffc7a6 0%, #ffb6b3 50%, #ffa8c5 100%);
+  .grad-mutual {
+    background-image: linear-gradient(125deg, var(--color-banana) 0%, #ffd98f 45%, var(--color-peach) 100%);
   }
-  .brand-text {
-    background-image: linear-gradient(100deg, #c2410c 0%, #d9365e 55%, #be185d 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .grad-scout {
+    background-image: linear-gradient(125deg, var(--color-banana) 0%, #c3f0c6 45%, var(--color-sky) 100%);
   }
-  .glass {
-    background: rgb(254 237 159 / 0.82);
-    backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  .grad-brand {
+    background-image: linear-gradient(110deg, var(--color-peach) 0%, var(--color-banana) 50%, var(--color-sky) 100%);
   }
   .card {
-    @apply rounded-3xl border border-line bg-surface shadow-soft;
+    @apply rounded-[var(--radius-card)] border border-line bg-surface shadow-soft;
   }
   .eyebrow {
-    @apply text-xs font-semibold tracking-[0.14em] text-muted uppercase;
+    @apply text-xs font-bold tracking-[0.14em] text-muted uppercase;
+  }
+  .highlight {
+    background-image: linear-gradient(transparent 58%, var(--color-banana) 58%, var(--color-banana) 92%, transparent 92%);
   }
   .no-scrollbar {
     scrollbar-width: none;
@@ -112,17 +115,10 @@
     display: none;
   }
   .skeleton {
-    background: linear-gradient(90deg, #f6eec9 25%, #fffaf0 50%, #f6eec9 75%);
+    background: linear-gradient(90deg, #f3f1e7 25%, #fbfaf4 50%, #f3f1e7 75%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
   }
-}
-
-/* Mansalva ships a single weight: never fake-bold it, and give it room to breathe. */
-h1, h2, h3, h4, .font-display {
-  font-weight: 400 !important;
-  font-synthesis-weight: none;
-  letter-spacing: 0.01em !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
