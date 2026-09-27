@@ -4,6 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { GENDERS, type Gender } from '../../shared/types';
 import { GENDER_LABELS } from '../../shared/labels';
 import { Logo } from '../components/brand/Logo';
+import { PrivacyGate } from '../components/privacy/PrivacyGate';
 import { Button } from '../components/ui/Button';
 import { ChoiceChips } from '../components/ui/ChoiceChips';
 import { TextField } from '../components/ui/Field';
@@ -13,6 +14,8 @@ import { useSession } from '../lib/session';
 export function SetupPage() {
   const { me, setMe, config } = useSession();
   const navigate = useNavigate();
+  const [gateOpen, setGateOpen] = useState(true);
+  const [skippedContacts, setSkippedContacts] = useState(false);
   const [firstName, setFirst] = useState('');
   const [lastName, setLast] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
@@ -32,7 +35,6 @@ export function SetupPage() {
     if (!firstName.trim() || !lastName.trim()) return setError('Add your first and last name — it’s how people you know find you.');
     if (!gender) return setError('Choose a gender option (you can pick “Prefer not to say”).');
     if (!Number.isInteger(ageNum) || ageNum < minAge) return setError(`Partner Up is for people ${minAge} and older.`);
-    if (!phone.trim() && !instagram.trim()) return setError('Add a phone number or Instagram so a match can reach you.');
     setBusy(true);
     try {
       setMe(
@@ -55,6 +57,15 @@ export function SetupPage() {
 
   return (
     <div className="min-h-dvh bg-canvas">
+      {gateOpen && (
+        <PrivacyGate
+          onContinue={() => setGateOpen(false)}
+          onSkip={() => {
+            setSkippedContacts(true);
+            setGateOpen(false);
+          }}
+        />
+      )}
       <header className="mx-auto flex h-20 max-w-6xl items-center px-4 sm:px-6">
         <Logo />
       </header>
@@ -73,9 +84,14 @@ export function SetupPage() {
           <p className="flex items-start gap-2 rounded-2xl bg-banana-soft px-4 py-3 text-sm font-medium">
             <Lock className="mt-0.5 size-4 shrink-0" aria-hidden /> Name, gender and age can’t be casually changed later — so a match always knows who you really are.
           </p>
+          {skippedContacts && (
+            <p className="rounded-2xl bg-ink/[0.04] px-4 py-3 text-sm font-semibold text-ink-2">
+              You skipped contact info — that’s fine. Add a phone number or Instagram any time from Account, and it’ll still stay hidden until a connection is confirmed.
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(404) 555-0100" hint="Only revealed after a mutual match." optional />
-            <TextField label="Instagram" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@yourhandle" hint="Add at least one of these two." optional />
+            <TextField label="Phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(404) 555-0100" hint="Hidden until a confirmed connection." optional />
+            <TextField label="Instagram" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@yourhandle" hint="Optional — add later if you prefer." optional />
           </div>
           {error && (
             <p className="rounded-2xl bg-danger-soft px-4 py-2.5 text-sm font-semibold text-danger" role="alert">

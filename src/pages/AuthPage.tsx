@@ -2,6 +2,7 @@ import { Lock, Play } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Logo } from '../components/brand/Logo';
+import { PrivacyGate } from '../components/privacy/PrivacyGate';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/Field';
@@ -24,6 +25,7 @@ export function AuthPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDemo, setPendingDemo] = useState<{ key: string; name: string } | null>(null);
 
   useEffect(() => {
     if (status === 'signed_in') navigate(next, { replace: true });
@@ -50,8 +52,10 @@ export function AuthPage() {
     setBusy(key);
     try {
       await signInDemo(key);
+      setPendingDemo(null);
     } catch (err) {
       setError(errorMessage(err));
+      setPendingDemo(null);
     } finally {
       setBusy(null);
     }
@@ -61,6 +65,14 @@ export function AuthPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
+      {pendingDemo && (
+        <PrivacyGate
+          personaName={pendingDemo.name}
+          busy={busy === pendingDemo.key}
+          onContinue={() => void demo(pendingDemo.key)}
+          onSkip={() => void demo(pendingDemo.key)}
+        />
+      )}
       <header className="mx-auto flex h-20 w-full max-w-6xl items-center px-4 sm:px-6">
         <Logo badge />
       </header>
@@ -121,7 +133,7 @@ export function AuthPage() {
                     <button
                       key={d.key}
                       type="button"
-                      onClick={() => void demo(d.key)}
+                      onClick={() => setPendingDemo({ key: d.key, name: d.name })}
                       disabled={busy !== null}
                       className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-white px-4 text-left transition hover:border-ink/40 disabled:opacity-60"
                     >

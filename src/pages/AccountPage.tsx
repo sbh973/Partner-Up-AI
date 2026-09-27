@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GENDER_LABELS } from '../../shared/labels';
 import { MuseBadge } from '../components/brand/Logo';
+import { PrivacyGate } from '../components/privacy/PrivacyGate';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/Field';
@@ -20,6 +21,7 @@ export function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pendingSwitch, setPendingSwitch] = useState<{ key: string; name: string } | null>(null);
 
   if (!me || !profile) return null;
 
@@ -54,11 +56,20 @@ export function AccountPage() {
   const switchTo = (key: string) =>
     run(key, async () => {
       await signInDemo(key);
+      setPendingSwitch(null);
       navigate('/app', { replace: true });
     });
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      {pendingSwitch && (
+        <PrivacyGate
+          personaName={pendingSwitch.name}
+          busy={busy === pendingSwitch.key}
+          onContinue={() => void switchTo(pendingSwitch.key)}
+          onSkip={() => void switchTo(pendingSwitch.key)}
+        />
+      )}
       <header className="flex items-center gap-4">
         <Avatar name={`${profile.firstName} ${profile.lastName}`} hue={profile.avatarHue} size="xl" />
         <div className="min-w-0">
@@ -94,6 +105,9 @@ export function AccountPage() {
           <h2 className="text-lg">Contact info</h2>
           <p className="mt-1 text-sm text-muted">Only shared after a mutual match or when both people say yes in Scout. Never before.</p>
         </div>
+        {!profile.phone && !profile.instagram && (
+          <p className="rounded-2xl bg-banana-soft px-4 py-3 text-sm font-semibold">You skipped this during setup — nobody can be reached without at least one. Add a phone number or Instagram below.</p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} optional />
           <TextField label="Instagram" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@handle" maxLength={31} optional />
@@ -113,7 +127,7 @@ export function AccountPage() {
             {config.demoAccounts
               .filter((a) => !me.email.startsWith(`${a.key}@`))
               .map((a) => (
-                <Button key={a.key} variant="secondary" loading={busy === a.key} disabled={busy !== null} onClick={() => void switchTo(a.key)}>
+                <Button key={a.key} variant="secondary" loading={busy === a.key} disabled={busy !== null} onClick={() => setPendingSwitch({ key: a.key, name: a.name })}>
                   Switch to {a.name}
                 </Button>
               ))}

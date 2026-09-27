@@ -36,21 +36,18 @@ export const CredentialsSchema = z.object({
   password: z.string().min(8, 'must be at least 8 characters').max(200),
 });
 
-export const ProfileSetupSchema = z
-  .object({
-    firstName: name,
-    lastName: name,
-    gender: z.enum(GENDERS),
-    age: z.number().int().min(13).max(120),
-    phone,
-    instagram,
-  })
-  .refine((p) => p.phone || p.instagram, { message: 'Add a phone number or Instagram so a match can reach you.', path: ['phone'] });
-
-export const ContactSchema = z.object({ phone, instagram }).refine((p) => p.phone || p.instagram, {
-  message: 'Keep at least one way for a match to reach you.',
-  path: ['phone'],
+// Contact info is optional at every step (the privacy gate lets people skip
+// it), so neither schema requires phone or instagram — the UI nudges instead.
+export const ProfileSetupSchema = z.object({
+  firstName: name,
+  lastName: name,
+  gender: z.enum(GENDERS),
+  age: z.number().int().min(13).max(120),
+  phone,
+  instagram,
 });
+
+export const ContactSchema = z.object({ phone, instagram });
 
 export const MutualSearchSchema = z.object({ firstName: name, lastName: name });
 export const MutualTargetSchema = z.object({ targetId: z.string().min(1).max(40) });
