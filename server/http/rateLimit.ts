@@ -17,6 +17,6 @@ export function rateLimit(key: string, limit: number, windowMs = 60_000): void {
   }
   entry.count++;
   if (entry.count > limit) {
-    throw new ApiError(429, 'rate_limited', 'You’re going a little fast — give Partner AI a few seconds and try again.');
+    throw new ApiError(429, 'rate_limited', 'You’re going a little fast — wait a few seconds and try again.');
   }
 }

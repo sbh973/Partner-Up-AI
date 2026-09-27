@@ -1,141 +1,101 @@
-# Partner Up AI: architecture
+# Partner Up — architecture
 
 ## System
 
 ```
-React (Vite SPA) ──HTTPS──▶ /api (Node, same origin)
-                              ├─ http/router    auth · validation (Zod) · rate limits · safe errors
-                              ├─ services/      profiles · matching · groups (authorization lives here)
-                              ├─ matching/      deterministic, intent-aware engine
-                              ├─ semantic/      concept ontology + graded similarity
-                              ├─ ai/            Partner AI: provider abstraction + deterministic fallbacks
-                              └─ data/          DataStore → MemoryStore (demo) | SupabaseStore (Postgres + RLS)
-                                                          Anthropic Claude (server-side only)
+React (Vite SPA) ──same-origin HTTPS──▶ /api (Node)
+                                          ├─ http/       router · cookies · CSRF header · rate limits · safe errors
+                                          ├─ api/        routes + Zod input schemas
+                                          ├─ auth.ts     scrypt passwords · HMAC'd session tokens
+                                          ├─ account/    profile setup (identity locked) · contacts · delete
+                                          ├─ mutual/     requests · matches · pulse          ← NO AI (lint-enforced)
+                                          ├─ scout/      Partner DNA · engine · groups · Keep Looking
+                                          ├─ semantic/   concept ontology + graded similarity
+                                          ├─ ai/         AIProvider → MuseProvider | offline fallback
+                                          └─ db.ts       Prisma → SQLite
+                                                              │
+                                                              └──▶ Muse Responses API (server-side only)
 ```
 
-- **Dev:** `npm run dev` mounts the API inside Vite (`vite.config.ts` → `server/app.ts`).
+- **Dev:** `npm run dev` mounts the API inside Vite (`vite.config.ts` → `server/app.ts`), so one process is the whole app.
 - **Prod:** `npm run build && npm start` bundles `server/prod.ts`, which serves `dist/` and `/api`.
-- The browser never holds an AI key or the Supabase service key. `/api/config` exposes only the public anon key (in Supabase mode).
+- **Secrets:** env vars are read only on the server (`server/config.ts`). `GET /api/config` exposes only booleans and demo account names.
 
-## Folder map
+## Data model (`prisma/schema.prisma`)
+
+| Model | Purpose |
+|---|---|
+| `User`, `Session`, `Profile` | Account, cookie sessions (token HMAC only), locked identity plus contacts |
+| `MutualRequest` | One-sided secret choice. `targetId` is null while "waiting for them to join". Statuses: `active`, `waiting`, `matched`, `expired`, `ended`, `withdrawn` |
+| `MutualSearch` | Feeds the anonymous Partner Pulse counts (deduplicated per searcher/target/day) |
+| `MutualMatch` | Created atomically when a request becomes reciprocal. Sets both users `taken`; `earliestEndAt` = +24h |
+| `PartnerDNA` | Scout profile (JSON list columns) with `lastSource` = `muse`, `offline` or `manual` |
+| `ScoutRequest` | A parsed request (intent JSON, lens); `watching` = Keep Looking |
+| `ScoutConnection` | Requester ↔ candidate: score, explanation, per-side acceptance, and status (`suggested`, `pending`, `connected`, `declined`) |
+| `Notification` | Inbox for both systems. Mutual messages never name a one-sided sender |
+
+## Mutual flow
 
 ```
-shared/            types.ts (the API contract), labels.ts
-server/
-  ai/              provider.ts (schemas + interface) · anthropic.ts · service.ts · heuristics.ts · templates.ts
-  api/             routes.ts · schemas.ts (input validation)
-  data/            store.ts (interface) · memoryStore.ts · supabaseStore.ts · seed.ts · mappers.ts
-  http/            router.ts · errors.ts · rateLimit.ts
-  matching/        side.ts · engine.ts · weights.ts · availability.ts · recommend.ts · groups.ts
-  semantic/        ontology.ts · similarity.ts
-  services/        profiles.ts · matching.ts · groups.ts
-  auth.ts · config.ts · app.ts · prod.ts
-src/
-  components/      ui · ai · match · dna · partnership · profile · modes · layout · brand
-  features/survey  adaptive survey state + mode questions
-  lib/             api · auth · me · modes · session · useLoad · usePartnerUp
-  pages/           Landing · Auth · Home · Onboarding · Discover · MatchDetail · Partnership · Matches · Groups · Profile
-supabase/migrations/0001_partner_up.sql
-scripts/seed-supabase.ts
-tests/             matching.test.ts · api.test.ts
+partnerUp(A → B)
+  ├─ B taken? → 409          limit (5 / 30 days) reached? → 409
+  ├─ B → A active?  ── yes ─▶ transaction: create MutualMatch, mark both matched + taken, notify both
+  └─ no ─▶ store secret request (expires in 30 days)
 ```
 
-## Matching algorithm
+Requests expire lazily on read. `onProfileCreated` attaches "waiting" requests to a newly joined user and notifies the sender that they joined, never whether they chose back.
 
-Each person becomes a **Side** for a mode: *who they are* (profile) + *what they want now* (the mode survey, overridden by a live natural-language intent) + *what they offer*. Everything is canonicalised to ontology concept ids.
+## Scout flow
 
-**Semantic similarity** `sim(a, b)` ∈ [0, 1] is graded as follows:
+```
+text ──▶ Muse.parseGroupIntent ──(timeout/error)──▶ offline parser
+             │
+             ▼ ScoutIntent {lens, category, neededSkills, interests, location, groupSize, availability}
+  about-me facts → visible DnaPatch (with Undo)
+             │
+             ▼
+  engine.scoreCandidate(me, intent, them)   ← deterministic; weights per lens; gates
+             │
+     groupSize > 1 ? assembleGroup (greedy) : top people ≥ 55
+             │                                   │ none
+             ▼                                   ▼
+  Muse writes explanation from computed facts   Keep Looking (watching = true)
+                                                 └─ matchWatchersAgainst(newUser) → notify both at ≥ 65
+```
+
+### Semantic similarity
+
+Terms are canonicalised to ontology concept ids (`server/semantic/ontology.ts`). `sim(a, b)` is graded:
 
 | Relationship | Similarity |
 |---|---|
 | Identical | 1.00 |
-| Parent/child (Chemistry ⊃ Organic chem) | 0.85 |
-| Explicitly related (Photography ~ Art) | 0.75 |
-| Siblings (Valorant ~ CS2) | 0.55 |
+| Ancestor/descendant (Programming ⊃ JavaScript ⊃ React) | 0.85, −0.1 per level (min 0.6) |
+| Explicitly related | 0.75 |
+| Siblings | 0.55 |
 | Cousins | 0.40 |
-| Same category | optional small credit |
 
-- `coverage(wanted, pool)` = mean over wanted of the best `sim` found in pool.
-- `softOverlap(A, B)` = greedy one-to-one pairing of the strongest matches, saturating at 3 shared items.
+Unknown terms fall back to token overlap. Muse's `analyzeSemanticSimilarity` is used only when neither term is in the ontology.
 
-**Mutual intent** is always two-sided:
+### Locations
 
-```
-aWants = coverage(A.seeks, B.offers ∪ B.interests ∪ B.roleTags ∪ …)
-bWants = coverage(B.seeks, A.offers ∪ A.interests ∪ A.roleTags ∪ …)
-mutual = √(aWants · bWants)     // geometric mean: both must benefit
-```
+`server/scout/location.ts` resolves campuses and cities (KSU ⊂ Kennesaw ⊂ metro Atlanta; Georgia Tech, Emory, GSU, …). A match in the same place scores highest, then the same city, then the same metro area.
 
-**Dimensions and weights (per mode):**
+### Groups
 
-| Connect | | Learn | | Explore | |
-|---|---|---|---|---|---|
-| Shared interests | 30% | Complementary strengths `(aGets+bGets)/2` | 35% | Location relevance `city · (0.6 + 0.4·roleFit)` | 25% |
-| Mutual intent | 25% | Mutual learning value `√(aGets·bGets)` | 25% | Mutual intent | 25% |
-| Availability | 20% | Availability | 15% | Shared interests | 20% |
-| Social fit (group size, setting) | 15% | Learning-style fit | 15% | Availability | 15% |
-| Location & context | 10% | Shared courses & context | 10% | Language compatibility | 15% |
+Groups are assembled greedily from the top 15 candidates scoring 40 or more. The value of a group is `0.5·mean fit + 0.3·coverage + 0.2·shared timing`. Coverage depends on the lens:
 
-The Learn formulas use `aGets = coverage(A.needs, B.strengths)` and `bGets = coverage(B.needs, A.strengths)`.
+- Connect and Learn: how well the group covers the requested skills.
+- Explore: how much the members actually want to go out and explore.
 
-```
-score = round(100 · Σ weight_d · score_d)        clamped to 1–99
-```
+## AI provider (`server/ai`)
 
-If a hard requirement isn't met (e.g. Explore in a city the other person isn't in), the score is multiplied by 0.5 and a caveat is shown. Availability is directional when you asked for a time ("at night" means: are *they* free then?), and it uses an overlap coefficient otherwise.
+- `provider.ts`: Zod schemas plus the `AIProvider` interface.
+- `muse.ts`: the `callMuse()` adapter. POST `{base}/responses` with `text.format: json_object`, `reasoning.effort: minimal` and `store: false`; the response is read from `output[].content[].output_text`.
+- `service.ts`: `attempt()` wraps each call with a timeout, a small cache and a fallback. Logs record the reason only, never the key or user text.
+- `offline.ts`: the deterministic parser used whenever Muse is unavailable.
 
-**Reasons** are generated from the same computation and must be literally true: "Both love Music" appears only when both listed music, or one listed a kind of music. Merely related interests are labelled "Related interests: …".
+## Testing
 
-**Group complementarity** (Learn) is built greedily, adding the member that maximises:
-
-```
-0.45 · subject coverage + 0.30 · reciprocity (everyone gives & gets)
-+ 0.15 · shared availability + 0.10 · balance of contributions
-```
-
-**Find missing partner** picks the strongest candidate in the weakest subject, with the group objective as the tiebreak.
-
-## AI request/response schemas (`server/ai/provider.ts`)
-
-| Function | Input | Output (Zod, structured output) | Fallback |
-|---|---|---|---|
-| `parsePartnerIntent` | user text + mode hint | `{mode, summary, seeks[], offers[], interests[], availability[], groupPreference, groupSizeMax, setting, location, role, languagesSpoken[], languagesLearning[], followUps[≤2]}` | `heuristics.parseIntentLocally` |
-| `draftProfileFromText` | text + mode | profile fields + mode answers | `heuristics.draftProfileLocally` |
-| `generatePartnerDNA` | deterministic DNA sections | `{headline, summary}` | archetype + template |
-| `generateMatchNarrative` | engine reasons/caveats/offers | `{summary, ideas[3]}` | `templates.fallbackNarrative` |
-| `generateConnectionBridge` | shared tags, exchange | `{starters[≤3], firstStep}` | `templates.fallbackBridge` |
-
-Model output is canonicalised through the ontology and validated. It never contains or changes a score. Results are cached (LRU), and DNA is persisted.
-
-## Database (Supabase)
-
-The tables are `profiles`, `mode_profiles`, `partner_dna`, `contact_methods`, `intents`, `partner_requests`, `matches`, `match_feedback`, `study_groups`, `study_group_members` and `notifications`. They use UUID keys, cascade deletes and targeted indexes (e.g. a unique open request per pair/mode, and a unique active match per pair/mode).
-
-**RLS** was validated against real Postgres (PGlite) with 17 checks:
-
-- You see only your own profile, answers, DNA, intents, feedback and notifications.
-- **Partner requests are readable only by the requester.** No policy lets the target read them.
-- Matches are visible only to their two participants. Participants may only update `active`/`ended_by` (column grants).
-- Contact methods are visible to their owner and, *only while an active mutual match exists*, to the partner for methods with `share_on_match`.
-- Study-group visibility goes through a `SECURITY DEFINER` helper, which avoids policy recursion.
-- Users can't flip `is_demo_persona` or `user_id`, because profile updates are column-restricted.
-
-## Environment variables
-
-| Variable | Scope | Purpose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | server | Enables Claude (optional) |
-| `ANTHROPIC_MODEL` | server | Default `claude-opus-5` |
-| `AI_TIMEOUT_MS` | server | Falls back to local understanding after this (default 9000) |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | server → browser via `/api/config` | Supabase mode |
-| `SUPABASE_SERVICE_ROLE_KEY` | **server only** | Supabase mode |
-| `DEMO_EMAIL`, `DEMO_PASSWORD` | server only | One-click demo in Supabase mode |
-| `PORT` | server | Prod server port |
-| `PERSIST_DEMO_DATA` | server | `false` disables writing `.data/demo-db.json` |
-
-## Known limits and risks
-
-- **Demo mode** keeps data in one process (persisted to `.data/`). Use Supabase mode for multi-instance or serverless hosting.
-- The rate limiter is in-memory. Swap in Redis/Upstash for production.
-- The ontology covers the demo domains well. Unknown terms fall back to token overlap. Embeddings can be added behind `similarity.ts` without touching the engine.
-- Supabase mode is typechecked and its SQL/RLS is validated in Postgres, but it has not been run against a live Supabase project in this repo.
+- `tests/app.test.ts`: the real API against a throwaway SQLite database, with the offline provider. Covers auth, CSRF, the identity lock, the Mutual demo, save-for-join, limits, DNA extraction, all Scout demos, groups, Keep Looking, consent and privacy.
+- `tests/muse.test.ts`: `MuseProvider` against a mock Responses server. Checks the request shape, validation and fallbacks.

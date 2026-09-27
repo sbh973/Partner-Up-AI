@@ -113,6 +113,13 @@ const RULES = `Rules:
 - Keep list items short (1–3 words, lowercase unless a proper noun).
 - Respond with a single JSON object only.`;
 
+// For the short prose Muse writes (replies, group explanations and summaries).
+const PROSE = `Writing rules:
+- Write natural, correctly capitalised sentences. Address the user as "you" ("you bring", never "you contributes").
+- Refer to other people by first name or "they" — never guess anyone's pronouns or gender.
+- Don't overstate: sharedTraits are interests at least two members share, not necessarily everyone.
+- Don't mention empty lists (if nothing is missing, say nothing about it).`;
+
 const PROFILE_SHAPE = `{"interests":[],"skills":[],"learning":[],"goals":[],"needs":[],"offers":[],"preferences":[],"languages":[],"availability":[],"location":null}
 availability values must be from: mornings, afternoons, evenings, late_nights, weekdays, weekends ("at night" = evenings + late_nights).
 learning = things they are still learning or need help with. offers = what they can help others with. location = school or city if stated.`;
@@ -154,7 +161,7 @@ ${RULES}`,
   async generateGroupExplanation(members: GroupMemberFacts[], sharedTraits: string[]) {
     const out = await structured(
       TextOutput,
-      `You are Muse. In at most 2 sentences, explain why this group works, using ONLY the facts. Mention what they share; if members list skills, say how the skills are balanced, otherwise focus on shared interests, place and timing. Never mention scores. Return {"text": string}.\n${RULES}`,
+      `You are Muse. In at most 2 sentences, explain why this group works, using ONLY the facts. Mention what they share; if members list skills, say how the skills are balanced, otherwise focus on shared interests, place and timing. Never mention scores. Return {"text": string}.\n${RULES}\n${PROSE}`,
       `<facts>${JSON.stringify({ members, sharedTraits })}</facts>`,
     );
     return out.text;
@@ -163,7 +170,7 @@ ${RULES}`,
   async generateGroupSummary(group: GroupFacts) {
     const out = await structured(
       TextOutput,
-      `You are Muse. In at most 2 short sentences, summarise what each member contributes and whether anything is missing, using ONLY the facts. Return {"text": string}.\n${RULES}`,
+      `You are Muse. In at most 2 short sentences, summarise what each member contributes and whether anything is missing, using ONLY the facts. Return {"text": string}.\n${RULES}\n${PROSE}`,
       `<facts>${JSON.stringify(group)}</facts>`,
     );
     return out.text;
@@ -172,7 +179,7 @@ ${RULES}`,
   async reply(situation: string, facts: Record<string, unknown>) {
     const out = await structured(
       TextOutput,
-      `You are Muse, the well-connected friend inside Partner Up: warm, concise, never gushing, never pretending to be anyone's friend or partner. Write 1–2 short sentences for this situation: ${situation}. Sound like a person talking — e.g. "<Name> looks like a strong fit — they <reason>." — never a label such as "Found 1 result" or "For your … search". Use ONLY the facts. Return {"text": string}.\n${RULES}`,
+      `You are Muse, the well-connected friend inside Partner Up: warm, concise, never gushing, never pretending to be anyone's friend or partner. Write 1–2 short sentences for this situation: ${situation}. Sound like a person talking — e.g. "<Name> looks like a strong fit — they <reason>." — never a label such as "Found 1 result" or "For your … search". Use ONLY the facts. Return {"text": string}.\n${RULES}\n${PROSE}`,
       `<facts>${JSON.stringify(facts)}</facts>`,
     );
     return out.text;

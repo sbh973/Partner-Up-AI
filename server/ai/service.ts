@@ -196,17 +196,26 @@ function templateSummary(group: GroupFacts): string {
 
 export async function generateGroupExplanation(members: GroupMemberFacts[], sharedTraits: string[]): Promise<Sourced<string>> {
   const out = await attempt('groupExplanation', JSON.stringify({ members, sharedTraits }), (p) => p.generateGroupExplanation(members, sharedTraits));
-  return out?.trim() ? { value: out.trim().slice(0, 400), source: 'muse' } : { value: templateExplanation(members, sharedTraits), source: 'offline' };
+  return out?.trim() ? { value: clip(out, 420), source: 'muse' } : { value: templateExplanation(members, sharedTraits), source: 'offline' };
 }
 
 export async function generateGroupSummary(group: GroupFacts): Promise<Sourced<string>> {
   const out = await attempt('groupSummary', JSON.stringify(group), (p) => p.generateGroupSummary(group));
-  return out?.trim() ? { value: out.trim().slice(0, 400), source: 'muse' } : { value: templateSummary(group), source: 'offline' };
+  return out?.trim() ? { value: clip(out, 420), source: 'muse' } : { value: templateSummary(group), source: 'offline' };
 }
 
 // ─── Muse's short conversational replies ───────────────────────────────────
 
 export async function museReply(situation: string, facts: Record<string, unknown>, fallback: string): Promise<Sourced<string>> {
   const out = await attempt('reply', `${situation}:${JSON.stringify(facts)}`, (p) => p.reply(situation, facts));
-  return out?.trim() ? { value: out.trim().slice(0, 300), source: 'muse' } : { value: fallback, source: 'offline' };
+  return out?.trim() ? { value: clip(out, 320), source: 'muse' } : { value: fallback, source: 'offline' };
+}
+
+/** Keep Muse's prose short without cutting a sentence in half. */
+function clip(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  return end > 40 ? cut.slice(0, end + 1) : `${cut.slice(0, cut.lastIndexOf(' '))}…`;
 }

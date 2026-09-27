@@ -196,7 +196,7 @@ function ScoutHome({ demoMode, firstName }: { demoMode: boolean; firstName: stri
           }}
           rows={2}
           maxLength={600}
-          placeholder="Ask Muse… e.g. “I need a designer for a 4-person hackathon team”"
+          placeholder="Ask Muse… e.g. “a designer for my hackathon team”"
           className="min-h-14 flex-1 resize-none bg-transparent px-4 py-3 text-lg font-medium outline-none"
         />
         <button type="submit" disabled={!text.trim() || thinking} className="grad-scout flex size-14 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 disabled:opacity-40" aria-label="Ask Muse">
@@ -321,7 +321,7 @@ function ScoutHome({ demoMode, firstName }: { demoMode: boolean; firstName: stri
       {/* Watching + connections */}
       <div className="mt-12 grid gap-5 md:grid-cols-2">
         <section className="card p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg">Muse is watching</h2>
             {demoMode && (
               <Button size="sm" variant="secondary" icon={<UserPlus className="size-4" aria-hidden />} onClick={() => void newStudent()} loading={joining}>

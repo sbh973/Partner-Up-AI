@@ -1,95 +1,113 @@
-# Partner Up AI
+# Partner Up — AI powered by Muse
 
-**Whatever you're doing, find the right person to do it with.**
+**One platform for the people you already know — and the people you need to find.**
 
-> AI doesn't become your friend. It helps you find one.
+Partner Up has two deliberately different systems that share one account:
 
-Partner Up AI is an AI-powered engine for creating **mutually valuable human connections**. You tell it who you need right now, in plain words, and it finds people who need what you offer and offer what you need. It explains why each match makes sense, and it only reveals a connection when both people say yes.
-
-Built at **HackGT 13** for Meta's *Bringing People Closer Together with AI* challenge and the AI/ML track.
+| | **Mutual** — *You know WHO* | **Scout** — *You know WHAT* |
+|---|---|---|
+| The problem | You like someone you already know, but saying so first feels risky. | You need a teammate, a roommate, a study group or people to explore with, and you don't know who. |
+| How it works | Privately choose someone by their exact name. They're only told if they choose you too. | Tell Muse what you need in plain language. It understands, and Partner Up's engine finds and explains the best fits. |
+| AI | **None.** Mutual is pure logic. | **Muse** (Meta) understands language; a deterministic engine scores. |
+| Look | Banana → peach | Banana → sky |
 
 ---
 
-## Inspiration
+## Mutual — "Make the move without making it awkward"
 
-Finding people online is easy. Finding the *right* person for what you need *right now* is hard. Today that means browsing hundreds of profiles, posting in huge Discord servers, and messaging strangers with no idea whether the connection helps both of you.
+1. Sign up with email and password, then set up your profile: first/last name, gender and age (these are **locked** after setup), plus a phone number and/or Instagram.
+2. Search by **exact first + last name**. Mutual is not for browsing strangers.
+3. Tap **Partner Up**. It's secret: the other person is **never told who sent it**.
+4. If they independently Partner Up with you → **IT'S MUTUAL**. Both of you see the other's contact info at the same moment.
 
-We wanted to change the question from *"Who is available?"* to *"Who would actually benefit from meeting me, and who would I benefit from meeting?"*
+**Rules**
 
-## What it does
+- 5 requests per 30 days, and each request expires after 30 days.
+- A matched person is **taken** and can't receive new requests.
+- A match can only be ended after 24 hours.
+- Someone not on Partner Up yet? Save a private request. It's waiting for them when they join, and you're told they joined, never whether they chose you.
+- **Partner Pulse** shows anonymous counts only: "you appeared in 6 searches this month", "1 person has privately Partnered Up with you". Never who.
 
-**Three modes, one engine:**
+There is **no AI anywhere in Mutual**. An ESLint rule (`no-restricted-imports`) stops `server/mutual` from importing the AI, Scout or semantic code.
 
-| Mode | For | What "a great match" means |
-|---|---|---|
-| 🤝 **Connect** | Friends, gaming squads, niche hobbies, event buddies | Shared interests plus mutual intent (you both want the same kind of connection) |
-| 📚 **Learn** | Study pairs, study groups, language exchange | **Complementarity.** You cover their gaps and they cover yours. Nobody is just "the tutor." |
-| 🌎 **Explore** | Newcomers, travelers, international students | Place plus mutual intent. The newcomer wants a local, and the local wants to meet newcomers. |
+## Scout — "Tell Muse what you need"
 
-**The flow:** Sign in → pick a mode → short adaptive survey (or *"just tell Partner AI"*) → **Partner DNA** → describe who you need → ranked, explained matches → **Partner Up** (private) → if it's mutual: **It's a partnership 🤝** → shared contacts plus a **Connection Bridge**.
+1. **Meet Muse.** A 3-question chat builds your **Partner DNA**: interests, skills, what you're learning, goals, location, availability and more. Every item Muse adds appears on screen as it's added, and you can edit everything on the Partner DNA page. **Nothing is saved silently.**
+2. **Ask in plain language.** For example: "I need a programmer for a sustainability hackathon", "Find me a roommate at KSU next semester", "Find me a group to explore Atlanta this weekend".
+3. **Curated results, no swiping.** A few people or one assembled group, each with **"Why Muse matched you"**: grounded reasons and honest caveats.
+4. **Consent first.** Tap Partner Up. Contact info unlocks only when **both** people say yes.
+5. **Keep Looking.** No strong fit? Muse won't show weak matches. It saves the search and notifies **both people** when someone who fits joins.
 
-### Signature features
+Each request picks one of three lenses. Muse chooses the lens; the engine applies these weights.
 
-- **Partner DNA**: a concise snapshot of what you shared (interests, strengths, learning needs, languages, social style, availability). It's editable and never a personality verdict.
-- **Mutual Intent AI**: the engine checks *both directions*. For example: "You want a local to explore Atlanta with, and Jamal wants to meet international students." Most recommenders only ask "will A like B?"
-- **Intent-aware compatibility**: the same two people score differently per mode. Arnav and Alex are a 99% Connect match but a 56% Learn match, and the UI shows why.
-- **Similarity ≠ compatibility**: two people who both need help with chemistry look similar, but in Learn they score low, with the caveat *"similar, but neither of you can cover it."*
-- **Group complementarity (Learn)**: builds a 3–4 person study group whose members collectively cover the requested subjects. It shows knowledge-coverage bars, a group score and each member's gives/gets, and it can **find the missing partner** for an uncovered subject.
-- **Connection Bridge**: after a mutual match, Partner AI surfaces what you already have in common, suggests grounded conversation starters and a safe first step. Then it gets out of the way.
-- **Privacy-first mutual consent**: Partner Up requests are private. The other person is never told who chose them. They only see an anonymous count ("2 people privately chose you"). Contact info is revealed only after a mutual match, and only the methods each person opted to share.
+| Lens | Weights |
+|---|---|
+| **Connect** (teams, roommates, friends) | interests 35 · goals 25 · availability 20 · social fit 10 · complementary 10 |
+| **Learn** (study groups, tutoring, exchange) | strength→weakness coverage 40 · mutual benefit 25 · availability 15 · preferences 10 · academic context 10 |
+| **Explore** (cities, newcomers, weekend plans) | location 30 · interests 25 · mutual intent 20 · availability 15 · language 10 |
 
-## How AI is used
+Hard gates keep results honest:
 
-| Where | What the AI does | What it never does |
-|---|---|---|
-| **Natural-language intent** | Turns *"I'm good at calculus but struggling with chemistry, at night"* into `{mode: learn, offers: [calculus], seeks: [chemistry], availability: [evenings, late_nights]}` using schema-validated structured output | Pick matches or invent scores |
-| **Adaptive onboarding** | "Just tell Partner AI": drafts your survey answers from a sentence, and you review them | Save anything without you |
-| **Partner DNA** | Writes the headline and one-line summary from your own answers | Infer sensitive traits or diagnose personality |
-| **Semantic matching** | A concept ontology maps *ML ≈ AI*, *orgo ⊂ chemistry*, *Valorant ~ CS2* with graded similarity | — |
-| **Complementary-need detection** | Deterministic engine compares A's needs with B's strengths **and** B's needs with A's strengths | — |
-| **Match explanations** | Rephrases engine-computed facts into a short summary and three grounded "things to do together" | Add facts, mention scores |
-| **Connection Bridge** | Grounded conversation starters | Speak as, or impersonate, either person |
+- For Explore, a person outside the requested place is halved.
+- For Connect, someone missing the skill you asked for is scaled down.
 
-**The score is never produced by an LLM.** It's a deterministic, mode-weighted sum of explainable dimensions (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The "Why this score?" panel shows every dimension, its value and its weight.
+People show from a score of 55. Keep Looking only alerts you for a new person at 65 or above.
 
-**Works offline too.** Every AI call has a deterministic fallback: a rule-based language parser, templated DNA, grounded explanations and bridges. The demo runs reliably with no API key, and with `ANTHROPIC_API_KEY` set, Claude handles the language understanding and writing.
+## How Muse is used (and how it isn't)
 
-## Why AI is essential
+Muse is Meta's hosted model (`muse-spark-1.1`), called through its OpenAI-compatible **Responses API**. It is **server-side only** behind an `AIProvider` interface (`server/ai/provider.ts`):
 
-A filter can match `subject = chemistry`. It can't understand:
+| Method | What Muse does |
+|---|---|
+| `extractProfile` | Turns "I'm a CS student at KSU who loves hackathons" into Partner DNA fields |
+| `parseGroupIntent` | Turns a request into lens, category, needed skills, location, group size and timing |
+| `analyzeSemanticSimilarity` | Rates unfamiliar terms (known terms use the built-in concept ontology) |
+| `generateGroupExplanation` / `generateGroupSummary` | Writes "why this group works" **from facts the engine computed** |
+| `reply` | Muse's short conversational lines |
 
-> *"I have engineering experience and an idea, but I'm a beginner programmer. I need someone technically stronger who's into sustainability and doesn't mind working with a beginner."*
+What Muse never does:
 
-It can't tell that the person who is *strong* in chemistry and *needs* calculus is a far better partner than the person who also needs chemistry. It also can't tell that *"I love showing newcomers around"* answers *"I just moved here and don't know anyone."* Partner AI understands intent, context, semantic meaning and complementary needs. Then the humans connect.
+- **Muse never produces scores.** Every number comes from `server/scout/engine.ts`.
+- It never sees contact info.
+- It never touches Mutual.
 
-## Meta challenge: bringing people closer together
+Every call has a **5-second timeout and a deterministic fallback**: a rule-based parser, a concept ontology and templated explanations. With no key, an invalid key, or a network failure, the whole app still works. The UI says so quietly ("Using offline matching") and never claims Muse wrote something it didn't.
 
-Most AI products are trying to replace human interaction. Partner Up uses AI for the opposite purpose: helping people discover meaningful human connections they otherwise may never have found. The AI understands, ranks, explains and suggests a first step, and then it steps back. It never chats as a friend, never impersonates anyone, and never exposes one-sided interest.
+## Tech stack
 
-## How we built it
+- **Client:** React 19, Vite, TypeScript, Tailwind CSS v4, Framer Motion (respects reduced motion), Lucide icons, Manrope.
+- **Server:** Node (same origin as the client, no CORS), Zod validation, Prisma + SQLite.
+- **AI:** Muse (Meta) via the Responses API, with an offline fallback provider.
 
-- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS v4, Framer Motion, Lucide. Mobile-first and accessible (labels, focus rings, keyboard nav, reduced motion, AA contrast).
-- **API:** a small typed Node API (`server/`). In dev it's mounted inside Vite, and in prod the same code is served by `server/prod.ts`. All inputs are validated with Zod.
-- **AI:** Anthropic Claude via `@anthropic-ai/sdk`, **server-side only**, behind an `AIProvider` interface (swap models by implementing one method). It uses structured outputs, low effort for latency, server-side refusal fallbacks, and deterministic fallbacks on any error or timeout.
-- **Data and auth:** a `DataStore` interface with two implementations:
-  - **Demo mode** (default): a seeded in-memory store persisted to `.data/`, with local email/password auth (scrypt).
-  - **Supabase mode:** Postgres plus Supabase Auth, with a migration that includes **Row Level Security** (validated against real Postgres in development).
-- **Tests:** Vitest covers the matching engine plus end-to-end API tests of all three demo scenarios, privacy and authorization.
+**Security**
 
-## Quick start
+- Passwords are hashed with scrypt.
+- Sessions use HttpOnly SameSite cookies, and the database stores only an HMAC of each token.
+- Every write requires a CSRF header.
+- Rate limits, input validation and safe error messages.
+- One-sided request senders are never exposed, and contact info is never shown before a connection.
+
+## Run it locally
+
+Requires Node 22+.
 
 ```bash
 npm install
+```
+
+```bash
+cp .env.example .env.local
+```
+
+Put your Muse key in `.env.local` (optional: without one, Scout runs in offline mode). Then:
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:5173 and click **Live demo**. No keys are needed.
+Open http://localhost:5173. The database is created and seeded with 20+ fictional people on first run.
 
-Optional: `cp .env.example .env` and set `ANTHROPIC_API_KEY` to enable Claude.
-
-```bash
-npm test
-```
+**Production build:**
 
 ```bash
 npm run build
@@ -99,64 +117,65 @@ npm run build
 npm start
 ```
 
-`npm test` runs the engine and API tests. `npm run build` typechecks, then builds the SPA and server bundle. `npm start` serves the production build on `PORT` (default 8787).
+Set `SESSION_SECRET` in production.
 
-### Using Supabase (optional)
+### Environment variables
 
-1. Create a Supabase project. Run `supabase/migrations/0001_partner_up.sql` in the SQL editor.
-2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DEMO_EMAIL` and `DEMO_PASSWORD` in `.env`.
-3. Seed the demo world:
+See [`.env.example`](.env.example) for the full list with comments. Variable names only; **never commit real values**. Put real keys in `.env.local` (gitignored) locally, and in your host's secret manager (e.g. Vercel → Environment Variables) in production. Nothing is prefixed `VITE_`, so no variable can reach browser code.
 
-```bash
-npm run seed:supabase
-```
+| Variable | Purpose |
+|---|---|
+| `AI_PROVIDER` | `muse` (default) or `offline` |
+| `MUSE_API_KEY` | Muse API key (server-only) |
+| `MUSE_MODEL` | Default `muse-spark-1.1` |
+| `MUSE_BASE_URL` | Default `https://api.meta.ai/v1` |
+| `MUSE_REASONING_EFFORT` / `MUSE_TIMEOUT_MS` | Latency controls (default `minimal` / `5000`) |
+| `DATABASE_URL` | SQLite file, default `file:./dev.db` |
+| `SESSION_SECRET` | Required in production |
+| `DEMO_MODE` | Seed demo data and one-click demo accounts (default `true`) |
+| `MUTUAL_REQUEST_LIMIT`, `MUTUAL_WINDOW_DAYS`, `MUTUAL_REQUEST_TTL_DAYS`, `MUTUAL_END_AFTER_HOURS`, `MIN_AGE` | Mutual rules |
 
-The service-role key is read only by the server. The browser receives only the public anon key, via `/api/config`.
+### Scripts
 
-## The 2-minute demo
+| Script | What it does |
+|---|---|
+| `npm run dev` | Sync the DB schema and start Vite with the API mounted |
+| `npm test` | End-to-end API tests (offline provider) plus Muse provider tests against a mock server |
+| `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
+| `npm run build` / `npm start` | Production bundle and server |
 
-1. **Landing:** hero, the three modes, "Or tell Partner AI…". Click **Live demo**.
-2. **Connect:** click the Connect demo scenario (*"I want someone to play Valorant with at night who also likes F1."*).
-   - *Partner AI understood:* Connect · Gaming partners · Valorant, F1 · At night.
-   - **Alex Rivera: 96%**. Both play Valorant, both follow F1, and *Alex is also looking for people to game with*.
-3. **View match:** open the animated score and **Why this score?** (weighted dimensions), then the Mutual Intent panel.
-4. **Partner Up:** Alex's demo persona independently evaluates the match from *their* side and accepts. **IT'S A PARTNERSHIP 🤝** appears, then the Connection Bridge (common ground, starters) and Alex's shared contacts.
-5. **Learn:** run the Learn scenario. **Maya: 95%**. *Maya can help you with Chemistry, you can help Maya with Calculus* gives a **mutual learning match**. Point out Ethan (needs chemistry too) scoring low: *similarity ≠ compatibility*.
-6. **Groups:** build a Calculus/Chemistry/Python group. The coverage bars fill and every member gives and gets.
-7. **Explore:** run the Explore scenario. **Jamal: 96%**. A local who wants to meet international students gives mutual intent.
-8. Close: *"AI doesn't become your friend. It helps you find one."*
+## Demo script (about 4 minutes)
 
-**Reset demo** (Home or Profile) restores the demo account so you can run it again.
+Sign in with the one-click demo accounts **Arnav** and **Riya**. Use **Account → Reset demo** to start fresh.
 
-Demo personas are clearly labelled **Demo profile**. They're fictional, and they "decide" instantly by scoring the match from their own perspective so the full mutual flow can be shown live.
+1. **Mutual (no AI).**
+   - As **Arnav**: Mutual → search "Riya Shah" → Partner Up. Riya is not told.
+   - Account → **Switch to Riya Shah**. Partner Pulse shows "1 person has privately Partnered Up with you", with no name.
+   - Search "Arnav Desai" → Partner Up → **IT'S MUTUAL**. Contacts appear on both sides.
+2. **Scout: meet Muse.**
+   - As Arnav, open Scout. Answer Muse's questions and watch Partner DNA chips appear live.
+   - Show the Partner DNA page: everything is editable.
+3. **Scout: people.** "I need a programmer for a sustainability hackathon."
+   - Muse names Alex, with a 95% score and grounded reasons. Partner Up → connected.
+4. **Scout: roommate.** "Find me a roommate at KSU next semester." Marcus is at KSU and looking for next semester too.
+5. **Scout: group.** "Find me a group to explore Atlanta this weekend." A group card with members, what each is into, and why it works.
+6. **Keep Looking.**
+   - As Riya: "Find me a robotics teammate at KSU." Muse: nobody fits yet, I'll keep looking.
+   - Tap **A new student joins** → "Muse found someone" → Inbox → Tyler → Partner Up → contacts unlock.
 
-## Privacy and safety
+## HackGT
 
-- One-sided requests are **never** visible to their target, in the API or via RLS.
-- Contacts are revealed only in an active mutual match and only if the owner opted in. Ending a partnership hides them and resets consent.
-- Discovery responses contain only a reduced public profile (no email, no contacts, no raw embeddings, no "who chose me").
-- Profile fields are user-controllable (show/hide age, community, pronouns). Account deletion removes everything.
-- Avatars are generated initials, with no photos and no attractiveness ranking.
-- AI calls are server-side only, and no secrets are in the client bundle (verified on the build output).
-- Inputs are validated and sanitized server-side. AI endpoints are rate-limited. No stack traces are sent to clients.
-- Prompts instruct the model to treat user text as data, use only provided facts, never infer sensitive attributes, and never impersonate.
+- **What it is:** Partner Up turns two kinds of "I wish I could meet…" into safe, low-pressure connections. Mutual is for people you already know; Scout is for people you need to find.
+- **How we built it:**
+  - React + Vite + Tailwind front end; a Node + Prisma/SQLite API on the same origin.
+  - A hand-built concept ontology and a location resolver (KSU ⊂ Kennesaw ⊂ metro Atlanta).
+  - A lens-weighted, gated scoring engine and a greedy group assembler.
+  - Muse for language understanding and explanations, with a deterministic fallback for every call.
+- **Challenges:**
+  - Keeping AI useful but never in charge of numbers.
+  - Making "no silent saves" and "consent before contacts" true at the data layer, not just in the UI.
+  - Keeping a live demo reliable when the network isn't.
+- **What we're proud of:** Mutual has literally zero AI. Every Scout score is explainable. Muse degrades gracefully instead of breaking.
+- **What's next:** Campus verification, group chats for connected teams, and more places and concepts in the ontology.
 
-## Challenges
-
-- Making compatibility **explainable and honest**. Early versions said "Both love K-pop" when only one person did, so every "shared" reason is now checked against the concept hierarchy.
-- Balancing AI flexibility with **demo reliability**, which is why every AI function has a grounded deterministic fallback.
-- Designing consent so that nothing one-sided ever leaks, including through group requests.
-
-## Accomplishments
-
-- A working mutual-consent loop from natural language to explained match to private Partner Up to celebration and Connection Bridge.
-- One engine with three genuinely different definitions of "a great match".
-- Group complementarity that builds balanced study groups and finds the missing partner.
-
-## What we learned
-
-Similarity-based recommenders get human connection subtly wrong. Mutual benefit is the right objective, and it has to be computed from both sides.
-
-## What's next
-
-More modes (🚀 Build, 🏠 Live, 🎯 Compete, 🎮 Hangout and the original 💗 secret mutual Partner Up for adults), embeddings alongside the ontology, learning from 👍/👎 feedback, Discord group creation for partnerships, and notifications for "someone you searched for just joined."
+All people in the demo data are fictional.
