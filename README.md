@@ -9,7 +9,6 @@ Partner Up has two deliberately different systems that share one account:
 | The problem | You like someone you already know, but saying so first feels risky. | You need a teammate, a roommate, a study group or people to explore with, and you don't know who. |
 | How it works | Privately choose someone by their exact name. They're only told if they choose you too. | Tell Muse what you need in plain language. It understands, and Partner Up's engine finds and explains the best fits. |
 | AI | **None.** Mutual is pure logic. | **Muse** (Meta) understands language; a deterministic engine scores. |
-| Look | Banana → peach | Banana → sky |
 
 ---
 
@@ -144,25 +143,6 @@ See [`.env.example`](.env.example) for the full list with comments. Variable nam
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 | `npm run build` / `npm start` | Production bundle and server |
 
-## Demo script (about 4 minutes)
-
-Sign in with the one-click demo accounts **Arnav** and **Riya**. Use **Account → Reset demo** to start fresh.
-
-1. **Mutual (no AI).**
-   - As **Arnav**: Mutual → search "Riya Shah" → Partner Up. Riya is not told.
-   - Account → **Switch to Riya Shah**. Partner Pulse shows "1 person has privately Partnered Up with you", with no name.
-   - Search "Arnav Desai" → Partner Up → **IT'S MUTUAL**. Contacts appear on both sides.
-2. **Scout: meet Muse.**
-   - As Arnav, open Scout. Answer Muse's questions and watch Partner DNA chips appear live.
-   - Show the Partner DNA page: everything is editable.
-3. **Scout: people.** "I need a programmer for a sustainability hackathon."
-   - Muse names Alex, with a 95% score and grounded reasons. Partner Up → connected.
-4. **Scout: roommate.** "Find me a roommate at KSU next semester." Marcus is at KSU and looking for next semester too.
-5. **Scout: group.** "Find me a group to explore Atlanta this weekend." A group card with members, what each is into, and why it works.
-6. **Keep Looking.**
-   - As Riya: "Find me a robotics teammate at KSU." Muse: nobody fits yet, I'll keep looking.
-   - Tap **A new student joins** → "Muse found someone" → Inbox → Tyler → Partner Up → contacts unlock.
-
 ## HackGT
 
 - **What it is:** Partner Up turns two kinds of "I wish I could meet…" into safe, low-pressure connections. Mutual is for people you already know; Scout is for people you need to find.
@@ -171,11 +151,12 @@ Sign in with the one-click demo accounts **Arnav** and **Riya**. Use **Account �
   - A hand-built concept ontology and a location resolver (KSU ⊂ Kennesaw ⊂ metro Atlanta).
   - A lens-weighted, gated scoring engine and a greedy group assembler.
   - Muse for language understanding and explanations, with a deterministic fallback for every call.
+  - Claude for backend and frontend skeleton
 - **Challenges:**
   - Keeping AI useful but never in charge of numbers.
   - Making "no silent saves" and "consent before contacts" true at the data layer, not just in the UI.
   - Keeping a live demo reliable when the network isn't.
-- **What we're proud of:** Mutual has literally zero AI. Every Scout score is explainable. Muse degrades gracefully instead of breaking.
+- **What we're proud of:** Mutual has no AI. Every Scout score is explainable. Muse degrades gracefully instead of breaking.
 - **What's next:** Campus verification, group chats for connected teams, and more places and concepts in the ontology.
 
 All people in the demo data are fictional.
