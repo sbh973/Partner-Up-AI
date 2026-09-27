@@ -23,4 +23,14 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
     },
   },
+  {
+    // Mutual is intentionally AI-free: it may never import Muse or the Scout engine.
+    files: ['server/mutual/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['**/ai/**', '**/ai', '**/scout/**', '**/semantic/**'], message: 'Mutual must not use AI or Scout matching.' }] },
+      ],
+    },
+  },
 );

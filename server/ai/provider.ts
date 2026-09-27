@@ -1,77 +1,69 @@
 import { z } from 'zod';
-import { EXPLORE_ROLES, GROUP_PREFERENCES, MODES, SETTINGS, TIME_SLOTS } from '../../shared/types';
+import { TIME_SLOTS } from '../../shared/types';
 
-// ─── Output schemas (what the model must return) ───────────────────────────
+// The AI surface of Partner Up. Only Scout uses it — Mutual never imports
+// anything from server/ai. Implementations must throw on any failure; the
+// service layer (./service.ts) always has a deterministic fallback.
 
-export const IntentOutput = z.object({
-  mode: z.enum(MODES),
-  summary: z.string(),
-  seeks: z.array(z.string()),
-  offers: z.array(z.string()),
-  interests: z.array(z.string()),
-  availability: z.array(z.enum(TIME_SLOTS)),
-  groupPreference: z.enum(GROUP_PREFERENCES).nullable(),
-  groupSizeMax: z.number().nullable(),
-  setting: z.enum(SETTINGS).nullable(),
-  location: z.string().nullable(),
-  role: z.enum(EXPLORE_ROLES).nullable(),
-  languagesSpoken: z.array(z.string()),
-  languagesLearning: z.array(z.string()),
-  followUps: z.array(z.string()),
+export const ProfileExtraction = z.object({
+  interests: z.array(z.string()).default([]),
+  skills: z.array(z.string()).default([]),
+  learning: z.array(z.string()).default([]),
+  goals: z.array(z.string()).default([]),
+  needs: z.array(z.string()).default([]),
+  offers: z.array(z.string()).default([]),
+  preferences: z.array(z.string()).default([]),
+  languages: z.array(z.string()).default([]),
+  availability: z.array(z.enum(TIME_SLOTS)).catch([]).default([]),
+  location: z.string().nullable().catch(null).default(null),
 });
-export type IntentOutput = z.infer<typeof IntentOutput>;
+export type ProfileExtraction = z.infer<typeof ProfileExtraction>;
 
-export const ProfileDraftOutput = z.object({
-  bio: z.string(),
-  community: z.string().nullable(),
-  city: z.string().nullable(),
-  age: z.number().nullable(),
-  interests: z.array(z.string()),
-  skills: z.array(z.string()),
-  languagesSpoken: z.array(z.string()),
-  languagesLearning: z.array(z.string()),
-  availability: z.array(z.enum(TIME_SLOTS)),
-  setting: z.enum(SETTINGS).nullable(),
-  lookingFor: z.string(),
-  seeks: z.array(z.string()),
-  offers: z.array(z.string()),
-  activities: z.array(z.string()),
-  strengths: z.array(z.string()),
-  needs: z.array(z.string()),
-  courses: z.array(z.string()),
-  groupPreference: z.enum(GROUP_PREFERENCES).nullable(),
-  role: z.enum(EXPLORE_ROLES).nullable(),
-  exploringCity: z.string().nullable(),
+export const IntentExtraction = z.object({
+  summary: z.string().default(''),
+  category: z.string().default(''),
+  lens: z.enum(['connect', 'learn', 'explore']).catch('connect').default('connect'),
+  needed_skills: z.array(z.string()).default([]),
+  interests: z.array(z.string()).default([]),
+  learning_needs: z.array(z.string()).default([]),
+  offers: z.array(z.string()).default([]),
+  location: z.string().nullable().catch(null).default(null),
+  context: z.string().nullable().catch(null).default(null),
+  group_size: z.number().int().min(1).max(8).nullable().catch(null).default(null),
+  availability: z.array(z.enum(TIME_SLOTS)).catch([]).default([]),
+  languages: z.array(z.string()).default([]),
+  about_me: ProfileExtraction.partial().nullable().catch(null).default(null),
 });
-export type ProfileDraftOutput = z.infer<typeof ProfileDraftOutput>;
+export type IntentExtraction = z.infer<typeof IntentExtraction>;
 
-export const DnaOutput = z.object({ headline: z.string(), summary: z.string() });
-export type DnaOutput = z.infer<typeof DnaOutput>;
+export const SimilarityOutput = z.object({ score: z.number().min(0).max(1) });
+export const TextOutput = z.object({ text: z.string() });
 
-export const NarrativeOutput = z.object({ summary: z.string(), ideas: z.array(z.string()) });
-export type NarrativeOutput = z.infer<typeof NarrativeOutput>;
-
-export const BridgeOutput = z.object({ starters: z.array(z.string()), firstStep: z.string() });
-export type BridgeOutput = z.infer<typeof BridgeOutput>;
-
-// ─── Provider abstraction ──────────────────────────────────────────────────
-
-export interface StructuredRequest<T> {
-  /** Stable task name (used for logging/caching). */
-  task: string;
-  system: string;
-  user: string;
-  schema: z.ZodType<T>;
+export interface GroupMemberFacts {
+  name: string;
+  isYou: boolean;
+  skills: string[];
+  interests: string[];
+  contributes: string[];
 }
 
-/**
- * Anything that can turn a prompt into schema-validated JSON. Swap Claude for
- * another model by implementing this one method. Providers throw on any
- * failure; callers always have a deterministic fallback.
- */
+export interface GroupFacts {
+  request: string;
+  members: GroupMemberFacts[];
+  sharedTraits: string[];
+  covered: string[];
+  missing: string[];
+}
+
 export interface AIProvider {
   readonly name: string;
-  structured<T>(request: StructuredRequest<T>): Promise<T>;
+  extractProfile(rawText: string): Promise<ProfileExtraction>;
+  parseGroupIntent(rawText: string): Promise<IntentExtraction>;
+  analyzeSemanticSimilarity(a: string, b: string): Promise<number>;
+  generateGroupExplanation(members: GroupMemberFacts[], sharedTraits: string[]): Promise<string>;
+  generateGroupSummary(group: GroupFacts): Promise<string>;
+  /** One or two concise sentences in Muse's voice, grounded in the facts given. */
+  reply(situation: string, facts: Record<string, unknown>): Promise<string>;
 }
 
 export class AIUnavailableError extends Error {

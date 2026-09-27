@@ -1,15 +1,20 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ZodError, type z } from 'zod';
-import { resolveUser, type AuthUser } from '../auth';
+import { SESSION_COOKIE, resolveSession, type AuthUser } from '../auth';
 import { ApiError } from './errors';
+
+export interface CookieOptions {
+  maxAgeSeconds: number;
+}
 
 export interface RequestContext {
   method: string;
   params: Record<string, string>;
   query: URLSearchParams;
   body: unknown;
-  token: string | null;
+  cookies: Record<string, string>;
   ip: string;
+  setCookie: (name: string, value: string, options: CookieOptions) => void;
 }
 
 export interface AuthedContext extends RequestContext {
@@ -46,7 +51,7 @@ export function authedRoute(method: string, path: string, handler: AuthedHandler
     method,
     ...compile(path),
     handler: async (ctx) => {
-      const user = await resolveUser(ctx.token);
+      const user = await resolveSession(ctx.cookies[SESSION_COOKIE]);
       if (!user) throw new ApiError(401, 'unauthorized', 'Please sign in to continue.');
       return handler({ ...ctx, user });
     },
@@ -66,7 +71,7 @@ export function parseBody<S extends z.ZodType>(schema: S, body: unknown): z.infe
 const MAX_BODY_BYTES = 64 * 1024;
 
 async function readBody(req: IncomingMessage & { body?: unknown }): Promise<unknown> {
-  if (req.body !== undefined) return req.body; // Pre-parsed by a host (e.g. Vercel).
+  if (req.body !== undefined) return req.body;
   if (req.method === 'GET' || req.method === 'HEAD') return undefined;
   const chunks: Buffer[] = [];
   let size = 0;
@@ -84,52 +89,86 @@ async function readBody(req: IncomingMessage & { body?: unknown }): Promise<unkn
   }
 }
 
-function send(res: ServerResponse, status: number, payload: unknown): void {
+function parseCookies(header: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    const key = part.slice(0, i).trim();
+    try {
+      out[key] = decodeURIComponent(part.slice(i + 1).trim());
+    } catch {
+      // ignore malformed cookie
+    }
+  }
+  return out;
+}
+
+function send(res: ServerResponse, status: number, payload: unknown, cookies: string[]): void {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  if (cookies.length) res.setHeader('Set-Cookie', cookies);
   res.end(payload === undefined ? '{}' : JSON.stringify(payload));
 }
+
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /** Handle /api/* requests. Returns false if the URL isn't an API route. */
 export async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? '/', 'http://localhost');
   if (!url.pathname.startsWith('/api/')) return false;
   const method = (req.method ?? 'GET').toUpperCase();
+  const outgoingCookies: string[] = [];
 
   const candidates = routes.filter((r) => r.pattern.test(url.pathname));
   const route = candidates.find((r) => r.method === method);
   if (!route) {
-    send(res, candidates.length ? 405 : 404, {
-      error: { code: candidates.length ? 'method_not_allowed' : 'not_found', message: 'Not found.' },
-    });
+    send(res, candidates.length ? 405 : 404, { error: { code: 'not_found', message: 'Not found.' } }, outgoingCookies);
     return true;
   }
 
   try {
+    // CSRF: cookies are SameSite=Lax, and every state change must also carry a
+    // custom header — which a cross-site form or image can't set.
+    if (MUTATING.has(method) && req.headers['x-partner-up'] !== '1') {
+      throw new ApiError(403, 'csrf', 'Request blocked.');
+    }
     const match = url.pathname.match(route.pattern);
     const params: Record<string, string> = {};
     route.keys.forEach((key, i) => {
       params[key] = decodeURIComponent(match?.[i + 1] ?? '');
     });
-    const auth = req.headers.authorization;
-    const token = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : null;
     const forwarded = req.headers['x-forwarded-for'];
     const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const secure = req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
     const body = await readBody(req);
-    const result = await route.handler({ method, params, query: url.searchParams, body, token, ip });
-    send(res, 200, result);
+    const result = await route.handler({
+      method,
+      params,
+      query: url.searchParams,
+      body,
+      cookies: parseCookies(req.headers.cookie),
+      ip,
+      setCookie: (name, value, { maxAgeSeconds }) => {
+        outgoingCookies.push(
+          `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure ? '; Secure' : ''}`,
+        );
+      },
+    });
+    send(res, 200, result, outgoingCookies);
   } catch (error) {
     if (error instanceof ApiError) {
-      send(res, error.status, { error: { code: error.code, message: error.message } });
+      send(res, error.status, { error: { code: error.code, message: error.message } }, outgoingCookies);
     } else if (error instanceof ZodError) {
-      send(res, 400, { error: { code: 'invalid_input', message: 'Some of that input wasn’t valid.' } });
+      send(res, 400, { error: { code: 'invalid_input', message: 'Some of that input wasn’t valid.' } }, outgoingCookies);
     } else {
-      // Never leak stack traces or provider errors to the client.
-      console.error('[partner-up] Unhandled API error:', error);
-      send(res, 500, { error: { code: 'server_error', message: 'Something went wrong on our side. Your data is safe — try again.' } });
+      // Never leak stack traces, secrets or provider errors to the client.
+      console.error('[partner-up] Unhandled API error:', error instanceof Error ? error.message : error);
+      send(res, 500, { error: { code: 'server_error', message: 'Something went wrong on our side. Try again in a moment.' } }, outgoingCookies);
     }
   }
   return true;

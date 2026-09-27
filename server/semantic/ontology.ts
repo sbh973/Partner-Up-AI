@@ -94,7 +94,7 @@ export const CONCEPTS: ConceptDef[] = [
   // ── Creative ─────────────────────────────────────────────────────────────
   C('photography', 'Photography', '📸', 'creative', ['photography', 'photos', 'taking photos', 'taking pictures', 'film photography', 'street photography', 'camera'], { related: ['art', 'film'] }),
   C('art', 'Art', '🎨', 'creative', ['art', 'drawing', 'painting', 'sketching', 'street art', 'galleries']),
-  C('design', 'Design', '✏️', 'creative', ['design', 'ui design', 'ux design', 'ui/ux', 'graphic design', 'product design'], { related: ['art'] }),
+  C('design', 'UI/UX design', '✏️', 'creative', ['design', 'ui design', 'ux design', 'ui/ux', 'ui ux', 'ux', 'ui', 'graphic design', 'product design', 'figma', 'designer'], { related: ['art'] }),
   C('writing', 'Writing', '✍️', 'creative', ['writing', 'creative writing', 'poetry', 'journaling']),
   C('film', 'Movies', '🎬', 'creative', ['movies', 'movie', 'film', 'films', 'cinema', 'filmmaking']),
   C('anime', 'Anime', '🍥', 'creative', ['anime', 'manga']),
@@ -121,7 +121,7 @@ export const CONCEPTS: ConceptDef[] = [
   C('podcasts', 'Podcasts', '🎧', 'lifestyle', ['podcasts', 'podcast']),
 
   // ── Tech ─────────────────────────────────────────────────────────────────
-  C('programming', 'Programming', '💻', 'tech', ['programming', 'coding', 'code', 'software development', 'software engineering', 'computer science', 'cs', 'developer', 'cs 1301', 'intro to programming']),
+  C('programming', 'Programming', '💻', 'tech', ['programming', 'coding', 'code', 'software development', 'software engineering', 'computer science', 'cs', 'developer', 'cs 1301', 'intro to programming', 'programmer', 'programmers', 'coder', 'who can code', 'can code', 'can program', 'who can program', 'software developer', 'software engineer'], { related: ['hackathons'] }),
   C('python', 'Python', '🐍', 'tech', ['python'], { parent: 'programming', related: ['machine-learning'] }),
   C('java', 'Java', '☕', 'tech', ['java'], { parent: 'programming' }),
   C('javascript', 'JavaScript', '🟨', 'tech', ['javascript', 'js', 'typescript', 'react'], { parent: 'programming', related: ['web-dev'] }),
@@ -130,8 +130,10 @@ export const CONCEPTS: ConceptDef[] = [
   C('data-structures', 'Data structures & algorithms', '🧩', 'tech', ['data structures', 'algorithms', 'dsa', 'data structures and algorithms', 'leetcode'], { parent: 'programming' }),
   C('machine-learning', 'AI / ML', '🧠', 'tech', ['machine learning', 'ml', 'ai', 'artificial intelligence', 'deep learning', 'ai/ml', 'neural networks'], { related: ['python', 'statistics', 'robotics'] }),
   C('robotics', 'Robotics', '🤖', 'tech', ['robotics', 'robots', 'first robotics', 'robot'], { related: ['engineering', 'programming', 'machine-learning'] }),
-  C('engineering', 'Engineering', '⚙️', 'tech', ['engineering', 'mechanical engineering', 'mechanical', 'cad', 'electrical engineering', 'engineer']),
-  C('startups', 'Startups', '🚀', 'tech', ['startups', 'startup', 'entrepreneurship', 'building companies', 'founders', 'founder']),
+  C('engineering', 'Engineering', '⚙️', 'tech', ['engineering', 'engineer', 'hardware']),
+  C('mechanical-engineering', 'Mechanical engineering', '⚙️', 'tech', ['mechanical engineering', 'mechanical', 'cad', 'solidworks', 'mechanical engineer'], { parent: 'engineering' }),
+  C('electrical-engineering', 'Electrical engineering', '⚡', 'tech', ['electrical engineering', 'electronics', 'circuits', 'embedded'], { parent: 'engineering' }),
+  C('startups', 'Startups', '🚀', 'tech', ['startups', 'startup', 'entrepreneurship', 'building startups', 'building companies', 'founders', 'founder', 'entrepreneur']),
   C('hackathons', 'Hackathons', '🛠️', 'tech', ['hackathons', 'hackathon', 'hackgt'], { related: ['programming', 'startups'] }),
 
   // ── Math ─────────────────────────────────────────────────────────────────
@@ -200,6 +202,30 @@ export const CONCEPTS: ConceptDef[] = [
   C('international-student', 'International student', '🎓', 'explore', ['international student', 'foreign student', 'exchange student', 'study abroad student'], { related: ['newcomer', 'cultural-exchange'] }),
   C('newcomer', 'New in town', '🧳', 'explore', ['new in town', 'new to the city', 'just moved', 'recently moved', 'newly moved', 'new here', 'newcomer', "don't know anyone", 'dont know anyone', 'do not know anyone', 'moved here', 'new to atlanta', 'new to campus'], { related: ['meet-internationals'] }),
   C('traveler', 'Traveler', '✈️', 'explore', ['traveler', 'traveller', 'visiting', 'tourist', 'on a trip', 'for a week'], { related: ['meet-internationals', 'travel'] }),
+  // ── Scout: open-ended connection intents ─────────────────────────────────
+  C('roommate', 'Roommate', '🏠', 'lifestyle', ['roommate', 'roommates', 'room mate', 'housemate', 'housemates', 'share housing', 'shared housing', 'share an apartment', 'split rent', 'looking for housing', 'housing', 'sublease', 'someone to live with']),
+  C('hackathon-team', 'Hackathon team', '🛠️', 'tech', ['hackathon teammate', 'hackathon teammates', 'hackathon team', 'hackathon project', 'hackathon partner', 'team for a hackathon', 'hackathon group'], { related: ['hackathons', 'programming', 'project-partner'] }),
+  C('project-partner', 'Project partner', '🧩', 'tech', ['project partner', 'side project', 'build projects', 'building projects', 'build things', 'project teammate', 'project team'], { related: ['hackathon-team', 'startup-team'] }),
+  C('startup-team', 'Startup team', '🚀', 'tech', ['cofounder', 'co-founder', 'co founder', 'startup team', 'startup teammate', 'startup teammates', 'founding team'], { related: ['startups', 'project-partner'] }),
+  C('robotics-team', 'Robotics team', '🤖', 'tech', ['robotics team', 'robotics teammate', 'robotics teammates', 'robotics club', 'robotics competition'], { related: ['robotics', 'competition-team'] }),
+  C('competition-team', 'Competition team', '🏆', 'tech', ['competition', 'competitions', 'competition team', 'compete together'], { related: ['robotics-team', 'hackathon-team'] }),
+  C('club', 'Clubs', '🎪', 'social', ['club', 'clubs', 'student org', 'student organization']),
+  C('product', 'Product management', '📋', 'tech', ['product', 'product management', 'product manager', 'product strategy'], { related: ['startups', 'design'] }),
+  C('data-science', 'Data science', '📊', 'tech', ['data science', 'data scientist', 'data analysis', 'analytics', 'pandas'], { related: ['machine-learning', 'statistics', 'python'] }),
+  C('marketing', 'Marketing', '📣', 'humanities', ['marketing', 'social media marketing', 'branding'], { related: ['startups'] }),
+  C('business', 'Business', '💼', 'humanities', ['business', 'finance', 'business strategy'], { related: ['startups', 'economics'] }),
+  C('mobile-dev', 'Mobile development', '📱', 'tech', ['mobile development', 'ios', 'android', 'swift', 'react native', 'flutter', 'app development'], { parent: 'programming' }),
+  // Living / social preferences (used for roommates and group fit)
+  C('quiet', 'Quiet', '🤫', 'lifestyle', ['quiet', 'quiet home', 'calm']),
+  C('tidy', 'Clean & tidy', '🧼', 'lifestyle', ['clean', 'tidy', 'neat', 'organized']),
+  C('early-riser', 'Early riser', '🌅', 'lifestyle', ['early riser', 'morning person', 'early bird']),
+  C('night-owl', 'Night owl', '🦉', 'lifestyle', ['night owl', 'up late', 'late sleeper']),
+  C('non-smoker', 'Non-smoker', '🚭', 'lifestyle', ['non-smoker', 'non smoker', 'no smoking', 'smoke-free']),
+  C('pet-friendly', 'Pet friendly', '🐾', 'lifestyle', ['pet friendly', 'pets', 'has a pet', 'dog', 'cat']),
+  C('social-home', 'Social', '🎉', 'lifestyle', ['social', 'outgoing', 'likes hosting']),
+  C('small-groups', 'Small groups', '👥', 'social', ['small groups', 'small group']),
+  C('in-person', 'In person', '📍', 'social', ['in person', 'in-person', 'irl']),
+  C('online', 'Online', '💻', 'social', ['online', 'remote', 'virtual']),
 ];
 
 export const CONCEPT_BY_ID: ReadonlyMap<string, ConceptDef> = new Map(CONCEPTS.map((c) => [c.id, c]));

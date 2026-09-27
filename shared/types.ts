@@ -1,389 +1,290 @@
-// Shared domain types — the contract between the React app, the API and the
-// matching engine. Keep this file free of runtime dependencies.
-
-export const MODES = ['connect', 'learn', 'explore'] as const;
-export type Mode = (typeof MODES)[number];
+// Shared API contract between the React client and the Node server.
+// Partner Up has exactly two systems:
+//   • Mutual — you know WHO. Private, mutual-only reveal. No AI.
+//   • Scout  — you know WHAT. Muse understands you (Partner DNA) and finds people.
 
 export const TIME_SLOTS = ['mornings', 'afternoons', 'evenings', 'late_nights', 'weekdays', 'weekends'] as const;
 export type TimeSlot = (typeof TIME_SLOTS)[number];
 
-export const GROUP_SIZES = ['one_on_one', 'small_group', 'large_group'] as const;
-export type GroupSize = (typeof GROUP_SIZES)[number];
+export const GENDERS = ['woman', 'man', 'nonbinary', 'self_describe', 'prefer_not'] as const;
+export type Gender = (typeof GENDERS)[number];
 
-export const SETTINGS = ['online', 'in_person', 'either'] as const;
-export type Setting = (typeof SETTINGS)[number];
-
-export const LANGUAGE_LEVELS = ['native', 'fluent', 'conversational', 'learning'] as const;
-export type LanguageLevel = (typeof LANGUAGE_LEVELS)[number];
-
-export interface LanguageSkill {
-  language: string;
-  level: LanguageLevel;
-}
-
-export const EXPLORE_ROLES = ['local', 'traveler', 'international_student', 'exchange_student', 'newcomer'] as const;
-export type ExploreRole = (typeof EXPLORE_ROLES)[number];
-
-export const STUDY_STYLES = ['quiet_focus', 'discussion', 'practice_problems', 'teach_back'] as const;
-export type StudyStyle = (typeof STUDY_STYLES)[number];
-
-export const GROUP_PREFERENCES = ['pair', 'group', 'either'] as const;
-export type GroupPreference = (typeof GROUP_PREFERENCES)[number];
-
-export interface ProfileVisibility {
-  age: boolean;
-  community: boolean;
-  pronouns: boolean;
-}
-
-/** Universal Partner Profile (one per person). */
-export interface Profile {
-  id: string;
-  displayName: string;
-  age: number | null;
-  pronouns: string | null;
-  community: string | null;
-  city: string | null;
-  bio: string;
-  interests: string[];
-  skills: string[];
-  languages: LanguageSkill[];
-  availability: TimeSlot[];
-  groupSizes: GroupSize[];
-  setting: Setting;
-  visibility: ProfileVisibility;
-  avatarHue: number;
-  isDemoPersona: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type ProfileInput = Omit<Profile, 'id' | 'isDemoPersona' | 'createdAt' | 'updatedAt' | 'avatarHue'>;
-
-export interface ConnectDetails {
-  kind: 'connect';
-  activities: string[];
-}
-
-export interface LearnDetails {
-  kind: 'learn';
-  strengths: string[];
-  needs: string[];
-  courses: string[];
-  studyStyles: StudyStyle[];
-  groupPreference: GroupPreference;
-}
-
-export interface ExploreDetails {
-  kind: 'explore';
-  role: ExploreRole;
-  /** Where they are / will be exploring (for locals: their home city). */
-  exploringCity: string | null;
-  /** Optional, voluntarily shared home country/culture. Never inferred. */
-  origin: string | null;
-  activities: string[];
-}
-
-export type ModeDetails = ConnectDetails | LearnDetails | ExploreDetails;
-
-/** Mode-specific survey answers: what someone offers & seeks in one mode. */
-export interface ModeProfile {
-  profileId: string;
-  mode: Mode;
-  lookingFor: string;
-  seeks: string[];
-  offers: string[];
-  details: ModeDetails;
-  active: boolean;
-  updatedAt: string;
-}
-
-export type ModeProfileInput = Pick<ModeProfile, 'lookingFor' | 'seeks' | 'offers' | 'details'>;
-
-// ─── Partner DNA ────────────────────────────────────────────────────────────
-
-export type DnaSectionKey =
-  | 'interests'
-  | 'strengths'
-  | 'learningNeeds'
-  | 'languages'
-  | 'socialStyle'
-  | 'availability'
-  | 'lookingFor';
-
-export interface DnaSection {
-  key: DnaSectionKey;
-  label: string;
-  items: string[];
-}
-
-export interface PartnerDNA {
-  profileId: string;
-  headline: string;
-  summary: string;
-  sections: DnaSection[];
-  source: 'ai' | 'local';
-  updatedAt: string;
-}
-
-// ─── Intent ────────────────────────────────────────────────────────────────
-
-export interface PartnerIntent {
-  mode: Mode;
-  /** One-line restatement of what the person wants. */
-  summary: string;
-  /** What they need from a partner (skills, subjects, kinds of people). */
-  seeks: string[];
-  /** What they bring. */
-  offers: string[];
-  /** Activities / topics they want to share. */
-  interests: string[];
-  availability: TimeSlot[];
-  groupPreference: GroupPreference | null;
-  groupSizeMax: number | null;
-  setting: Setting | null;
-  location: string | null;
-  role: ExploreRole | null;
-  languagesSpoken: string[];
-  languagesLearning: string[];
-  /** Up to two short questions if something critical is missing. */
-  followUps: string[];
-  source: 'ai' | 'local';
-}
-
-// ─── Matching ──────────────────────────────────────────────────────────────
-
-export interface DimensionScore {
-  key: string;
-  label: string;
-  /** Weight in this mode, 0..1 (all weights in a mode sum to 1). */
-  weight: number;
-  /** Normalised dimension score, 0..1. */
-  score: number;
-}
-
-export type ReasonKind =
-  | 'shared'
-  | 'complement'
-  | 'mutual'
-  | 'availability'
-  | 'location'
-  | 'language'
-  | 'social'
-  | 'learning';
-
-export interface MatchReason {
-  kind: ReasonKind;
-  emoji: string;
-  title: string;
-  detail: string;
-}
-
-export interface MatchResult {
-  candidateId: string;
-  mode: Mode;
-  /** Partner Match score (0–100) from our weighted model — not a probability. */
-  score: number;
-  dimensions: DimensionScore[];
-  reasons: MatchReason[];
-  caveats: string[];
-  sharedInterests: ConceptTag[];
-  youOffer: ConceptTag[];
-  theyOffer: ConceptTag[];
-  mutualIntent: MutualIntent | null;
-  availabilityOverlap: TimeSlot[];
-}
+export type AiSource = 'muse' | 'offline';
 
 export interface ConceptTag {
   id: string;
   label: string;
-  emoji: string;
 }
 
-export interface MutualIntent {
-  detected: boolean;
-  youWant: string;
-  theyWant: string;
-  summary: string;
-}
+// ─── Account / profile ─────────────────────────────────────────────────────
 
-/** The only view of another person the API ever returns before a mutual match. */
-export interface PublicProfile {
+export interface MyProfile {
   id: string;
-  displayName: string;
-  age: number | null;
-  pronouns: string | null;
-  community: string | null;
-  city: string | null;
-  bio: string;
-  interests: string[];
-  languages: LanguageSkill[];
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  age: number;
+  phone: string | null;
+  instagram: string | null;
   avatarHue: number;
-  isDemoPersona: boolean;
+  taken: boolean;
 }
 
-export type RequestStatus = 'none' | 'pending' | 'mutual';
+export interface ProfileSetupInput {
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  age: number;
+  phone: string | null;
+  instagram: string | null;
+}
 
-export interface MatchCard {
-  profile: PublicProfile;
-  match: MatchResult;
-  highlights: ConceptTag[];
-  headline: string;
-  status: RequestStatus;
+export interface ContactUpdateInput {
+  phone: string | null;
+  instagram: string | null;
+}
+
+export interface DemoAccount {
+  key: string;
+  name: string;
+}
+
+export interface MeResponse {
+  email: string;
+  profile: MyProfile | null;
+  dna: PartnerDNA | null;
+  isDemoAccount: boolean;
+  unreadNotifications: number;
+}
+
+export interface AppConfig {
+  museConfigured: boolean;
+  demoMode: boolean;
+  demoAccounts: DemoAccount[];
+  mutual: { requestLimit: number; windowDays: number; requestTtlDays: number; endAfterHours: number; minAge: number };
+}
+
+// ─── Partner DNA (Scout) ───────────────────────────────────────────────────
+
+export const DNA_LIST_FIELDS = ['interests', 'skills', 'learning', 'goals', 'needs', 'offers', 'preferences', 'languages', 'availability'] as const;
+export type DnaListField = (typeof DNA_LIST_FIELDS)[number];
+
+export interface PartnerDNA {
+  about: string;
+  interests: string[];
+  skills: string[];
+  learning: string[];
+  goals: string[];
+  needs: string[];
+  offers: string[];
+  location: string | null;
+  availability: TimeSlot[];
+  preferences: string[];
+  languages: string[];
+  lastSource: AiSource | 'manual' | null;
+  updatedAt: string;
+}
+
+/** A visible change Muse proposes or applied to Partner DNA — never silent. */
+export interface DnaPatch {
+  interests?: string[];
+  skills?: string[];
+  learning?: string[];
+  goals?: string[];
+  needs?: string[];
+  offers?: string[];
+  preferences?: string[];
+  languages?: string[];
+  availability?: TimeSlot[];
+  location?: string | null;
+}
+
+export interface DnaExtractResponse {
+  added: DnaPatch;
+  dna: PartnerDNA;
+  reply: string;
+  source: AiSource;
+}
+
+// ─── Mutual (no AI) ────────────────────────────────────────────────────────
+
+export interface MutualPerson {
+  id: string;
+  firstName: string;
+  lastName: string;
+  age: number;
+  avatarHue: number;
+  taken: boolean;
+  alreadyRequested: boolean;
+}
+
+export interface MutualSearchResponse {
+  query: { firstName: string; lastName: string };
+  results: MutualPerson[];
+  /** Nobody by that name yet — you may save a private request for when they join. */
+  canSaveForJoin: boolean;
+}
+
+export type MutualRequestStatus = 'active' | 'waiting' | 'matched' | 'expired' | 'ended' | 'withdrawn';
+
+export interface MutualSentRequest {
+  id: string;
+  targetName: string;
+  avatarHue: number | null;
+  status: MutualRequestStatus;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface MutualMatchView {
+  id: string;
+  partner: { firstName: string; lastName: string; age: number; avatarHue: number };
+  contacts: { phone: string | null; instagram: string | null };
+  myContacts: { phone: string | null; instagram: string | null };
+  matchedAt: string;
+  canEndAt: string;
+  canEnd: boolean;
+}
+
+export interface MutualOverview {
+  pulse: { searchesThisMonth: number; privatelyChoseYou: number };
+  limits: { used: number; limit: number; remaining: number; windowDays: number; requestTtlDays: number };
+  active: MutualSentRequest[];
+  history: MutualSentRequest[];
+  match: MutualMatchView | null;
+  taken: boolean;
+}
+
+export interface MutualPartnerUpResponse {
+  status: 'sent' | 'mutual' | 'saved_for_join';
+  matchId: string | null;
+}
+
+// ─── Scout (Muse) ──────────────────────────────────────────────────────────
+
+export const SCOUT_LENSES = ['connect', 'learn', 'explore'] as const;
+export type ScoutLens = (typeof SCOUT_LENSES)[number];
+
+export interface ScoutIntent {
+  summary: string;
+  category: string;
+  lens: ScoutLens;
+  neededSkills: string[];
+  interests: string[];
+  learningNeeds: string[];
+  offers: string[];
+  location: string | null;
+  context: string | null;
+  /** Number of OTHER people wanted (a 4-person team = 3). */
+  groupSize: number | null;
+  availability: TimeSlot[];
+  languages: string[];
 }
 
 export interface IntentTags {
-  seeks: ConceptTag[];
-  offers: ConceptTag[];
+  category: ConceptTag;
+  neededSkills: ConceptTag[];
   interests: ConceptTag[];
+  learningNeeds: ConceptTag[];
 }
 
-export interface DiscoverResponse {
-  mode: Mode;
-  intent: PartnerIntent | null;
-  /** Human labels for the intent's concept ids (what Partner AI understood). */
-  intentTags: IntentTags | null;
-  results: MatchCard[];
-  searchedCount: number;
-}
-
-export interface MatchDetail {
-  profile: PublicProfile;
-  match: MatchResult;
-  narrative: MatchNarrative;
-  status: RequestStatus;
-  partnershipId: string | null;
-  lookingFor: string;
-}
-
-export interface MatchNarrative {
-  summary: string;
-  ideas: string[];
-  source: 'ai' | 'local';
-}
-
-// ─── Partner Up / partnerships ─────────────────────────────────────────────
-
-export const CONTACT_KINDS = ['email', 'instagram', 'discord', 'discord_invite', 'phone', 'other'] as const;
-export type ContactKind = (typeof CONTACT_KINDS)[number];
-
-export interface ContactMethod {
-  kind: ContactKind;
-  value: string;
-  shareOnMatch: boolean;
-}
-
-export interface PartnerUpResponse {
-  status: 'pending' | 'mutual';
-  partnershipId: string | null;
-}
-
-export interface ConnectionBridge {
-  common: ConceptTag[];
-  exchange: { youOffer: string[]; theyOffer: string[] } | null;
-  starters: string[];
-  firstStep: string;
-  source: 'ai' | 'local';
-}
-
-export interface Partnership {
+export interface ScoutPerson {
   id: string;
-  mode: Mode;
+  firstName: string;
+  age: number | null;
+  location: string | null;
+  avatarHue: number;
+  isDemoPersona: boolean;
+  roles: string[];
+}
+
+export interface ScoutReason {
+  kind: 'need' | 'shared' | 'intent' | 'availability' | 'location' | 'learning' | 'language';
+  text: string;
+}
+
+export interface ScoutCandidate {
+  person: ScoutPerson;
   score: number;
-  matchedAt: string;
-  active: boolean;
-  partner: PublicProfile;
-  partnerContacts: Omit<ContactMethod, 'shareOnMatch'>[];
-  bridge: ConnectionBridge | null;
+  reasons: ScoutReason[];
+  caveats: string[];
+  theyAreLookingFor: string | null;
+  connectionStatus: ScoutConnectionStatus | null;
 }
 
-export interface SentRequest {
-  id: string;
-  mode: Mode;
-  score: number;
-  createdAt: string;
-  expiresAt: string;
-  target: PublicProfile;
-}
-
-export interface MatchesResponse {
-  partnerships: Partnership[];
-  sent: SentRequest[];
-  /** Anonymous count of people who privately chose you (never who). */
-  incomingInterest: number;
-}
-
-// ─── Study groups (LEARN) ──────────────────────────────────────────────────
-
-export interface SubjectCoverage {
-  subject: ConceptTag;
-  coverage: number;
-  coveredBy: string[];
-}
-
-export interface GroupMember {
-  profile: PublicProfile;
+export interface GroupMemberView {
+  person: ScoutPerson;
   isYou: boolean;
-  strengths: ConceptTag[];
-  needs: ConceptTag[];
-  gives: string[];
-  gets: string[];
+  contributes: string[];
 }
 
-export interface StudyGroupSuggestion {
-  subjects: ConceptTag[];
-  members: GroupMember[];
-  coverage: SubjectCoverage[];
-  complementarity: number;
+export interface ScoutGroup {
+  members: GroupMemberView[];
+  score: number;
   explanation: string;
-  missing: SubjectCoverage | null;
+  summary: string;
+  covered: ConceptTag[];
+  missing: ConceptTag[];
+  source: AiSource;
 }
 
-export interface MissingPartnerSuggestion {
-  subject: ConceptTag;
-  candidate: GroupMember | null;
-  coverageAfter: number;
+export interface ScoutSearchResponse {
+  requestId: string;
+  intent: ScoutIntent;
+  intentTags: IntentTags;
+  kind: 'people' | 'group' | 'keep_looking';
+  message: string;
+  people: ScoutCandidate[];
+  group: ScoutGroup | null;
+  dnaUpdate: DnaPatch | null;
+  /** Where the language understanding came from. Scores are always computed by our engine. */
+  source: AiSource;
 }
 
-// ─── Me / notifications ────────────────────────────────────────────────────
+export type ScoutConnectionStatus = 'suggested' | 'pending' | 'connected' | 'declined';
 
-export type NotificationType = 'mutual_match' | 'interest' | 'request_expired' | 'group_formed';
+export interface ScoutConnectionView {
+  id: string;
+  role: 'requester' | 'candidate';
+  status: ScoutConnectionStatus;
+  origin: 'search' | 'keep_looking';
+  other: ScoutPerson;
+  score: number;
+  reasons: ScoutReason[];
+  requestSummary: string;
+  youAccepted: boolean;
+  theyAccepted: boolean;
+  contacts: { phone: string | null; instagram: string | null } | null;
+  groupKey: string | null;
+  createdAt: string;
+}
+
+export interface ScoutRequestView {
+  id: string;
+  summary: string;
+  rawText: string;
+  lens: ScoutLens;
+  watching: boolean;
+  createdAt: string;
+  connections: number;
+}
+
+export interface ScoutOverview {
+  requests: ScoutRequestView[];
+  connections: ScoutConnectionView[];
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────
 
 export interface AppNotification {
   id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
+  system: 'mutual' | 'scout' | 'account';
+  type: string;
+  message: string;
   link: string | null;
   read: boolean;
   createdAt: string;
 }
-
-export interface MeResponse {
-  email: string | null;
-  profile: Profile | null;
-  modeProfiles: ModeProfile[];
-  dna: PartnerDNA | null;
-  contacts: ContactMethod[];
-  isDemoAccount: boolean;
-}
-
-export interface AppConfig {
-  authMode: 'local' | 'supabase';
-  dataMode: 'memory' | 'supabase';
-  aiEnabled: boolean;
-  supabaseUrl: string | null;
-  supabaseAnonKey: string | null;
-  demoAvailable: boolean;
-}
-
-export interface ProfileDraft {
-  profile: Partial<ProfileInput>;
-  modeProfile: Partial<ModeProfileInput>;
-  source: 'ai' | 'local';
-}
-
-export type FeedbackValue = 'good' | 'not_for_me';
 
 export interface ApiErrorBody {
   error: { code: string; message: string };

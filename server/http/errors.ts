@@ -11,4 +11,4 @@ export class ApiError extends Error {
 
 export const notFound = (what = 'That') => new ApiError(404, 'not_found', `${what} could not be found.`);
 export const forbidden = () => new ApiError(403, 'forbidden', 'You don’t have access to that.');
-export const needsProfile = () => new ApiError(409, 'profile_required', 'Tell Partner AI a little about yourself first.');
+export const needsProfile = () => new ApiError(409, 'profile_required', 'Set up your profile first.');

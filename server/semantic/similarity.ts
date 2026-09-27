@@ -89,8 +89,7 @@ export function conceptLabel(id: string): string {
 }
 
 export function toTag(id: string): ConceptTag {
-  const concept = CONCEPT_BY_ID.get(id);
-  return { id, label: concept?.label ?? titleCase(id), emoji: concept?.emoji ?? '✨' };
+  return { id, label: CONCEPT_BY_ID.get(id)?.label ?? titleCase(id) };
 }
 
 // ─── Similarity ────────────────────────────────────────────────────────────

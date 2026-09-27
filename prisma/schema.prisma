@@ -1,0 +1,197 @@
+// Partner Up — SQLite schema (Prisma).
+//
+// Two systems share one account:
+//   • Mutual  — MutualRequest / MutualSearch / MutualMatch. No AI touches these.
+//   • Scout   — PartnerDNA / ScoutRequest / ScoutConnection, powered by Muse.
+// JSON lists are stored as TEXT (SQLite has no array type) and validated in code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  isDemoPersona Boolean  @default(false) // fictional seeded people
+  isDemoAccount Boolean  @default(false) // one-click demo logins
+  dormant       Boolean  @default(false) // seeded but "not joined yet" (Keep Looking demo)
+  createdAt     DateTime @default(now())
+
+  profile       Profile?
+  dna           PartnerDNA?
+  sessions      Session[]
+  notifications Notification[]
+  scoutRequests ScoutRequest[]
+
+  sentMutualRequests MutualRequest[] @relation("MutualSender")
+  gotMutualRequests  MutualRequest[] @relation("MutualTarget")
+  mutualSearches     MutualSearch[]  @relation("Searcher")
+  searchedAs         MutualSearch[]  @relation("SearchedUser")
+  matchesAsA         MutualMatch[]   @relation("MatchA")
+  matchesAsB         MutualMatch[]   @relation("MatchB")
+  scoutAsRequester   ScoutConnection[] @relation("ScoutRequester")
+  scoutAsCandidate   ScoutConnection[] @relation("ScoutCandidate")
+}
+
+model Session {
+  id        String   @id // HMAC of the opaque cookie token; the token itself is never stored
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Profile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  firstName     String
+  lastName      String
+  firstNameNorm String
+  lastNameNorm  String
+  gender        String
+  age           Int
+  phone         String?
+  instagram     String?
+  avatarHue     Int
+  taken         Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([firstNameNorm, lastNameNorm])
+}
+
+model PartnerDNA {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  about            String   @default("")
+  interestsJson    String   @default("[]")
+  skillsJson       String   @default("[]")
+  learningJson     String   @default("[]")
+  goalsJson        String   @default("[]")
+  needsJson        String   @default("[]")
+  offersJson       String   @default("[]")
+  location         String?
+  availabilityJson String   @default("[]")
+  preferencesJson  String   @default("[]")
+  languagesJson    String   @default("[]")
+  lastSource       String? // muse | offline | manual
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Mutual (no AI) ────────────────────────────────────────────────────────
+
+model MutualRequest {
+  id              String   @id @default(cuid())
+  senderId        String
+  targetId        String? // null while the person hasn't joined yet
+  targetFirstNorm String
+  targetLastNorm  String
+  targetDisplay   String
+  status          String   @default("active") // active | waiting | matched | expired | ended | withdrawn
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  sender          User     @relation("MutualSender", fields: [senderId], references: [id], onDelete: Cascade)
+  target          User?    @relation("MutualTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, status])
+  @@index([targetId, status])
+  @@index([targetFirstNorm, targetLastNorm, status])
+}
+
+model MutualSearch {
+  id            String   @id @default(cuid())
+  searcherId    String
+  searchedName  String
+  firstNorm     String
+  lastNorm      String
+  matchedUserId String?
+  notifiedJoin  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  searcher      User     @relation("Searcher", fields: [searcherId], references: [id], onDelete: Cascade)
+  matchedUser   User?    @relation("SearchedUser", fields: [matchedUserId], references: [id], onDelete: Cascade)
+
+  @@index([matchedUserId, createdAt])
+  @@index([firstNorm, lastNorm])
+}
+
+model MutualMatch {
+  id            String    @id @default(cuid())
+  userAId       String
+  userBId       String
+  matchedAt     DateTime  @default(now())
+  earliestEndAt DateTime
+  active        Boolean   @default(true)
+  endedAt       DateTime?
+  userA         User      @relation("MatchA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB         User      @relation("MatchB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@index([userAId, active])
+  @@index([userBId, active])
+}
+
+// ─── Scout (Muse) ──────────────────────────────────────────────────────────
+
+model ScoutRequest {
+  id          String            @id @default(cuid())
+  userId      String
+  rawText     String
+  intentJson  String
+  lens        String // connect | learn | explore (internal scoring lens)
+  source      String // muse | offline
+  active      Boolean           @default(true)
+  watching    Boolean           @default(false) // "Keep looking" — nobody fit yet
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connections ScoutConnection[]
+
+  @@index([userId, active])
+  @@index([active, watching])
+}
+
+model ScoutConnection {
+  id                String       @id @default(cuid())
+  requestId         String
+  requesterId       String
+  candidateId       String
+  score             Int
+  explanationJson   String
+  groupKey          String? // set when sent as part of a group
+  origin            String       @default("search") // search | keep_looking
+  requesterAccepted Boolean      @default(false)
+  candidateAccepted Boolean      @default(false)
+  status            String       @default("pending") // suggested | pending | connected | declined
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  request           ScoutRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requester         User         @relation("ScoutRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  candidate         User         @relation("ScoutCandidate", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, candidateId])
+  @@index([requesterId])
+  @@index([candidateId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  system    String // mutual | scout | account
+  type      String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
